@@ -38,75 +38,22 @@
     #login-screen {
       min-height: 100vh;
       display: flex;
-      background: #060D1A;
-    }
-
-    .login-left {
-      flex: 1;
-      display: flex;
       align-items: center;
       justify-content: center;
+      background: var(--bg);
       padding: 2rem;
-      position: relative;
-      overflow: hidden;
     }
 
-    .login-left::before {
-      content: '';
-      position: absolute;
-      top: 30%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 500px;
-      height: 500px;
-      background: radial-gradient(ellipse, rgba(91,155,213,0.12) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .login-brand {
-      position: relative;
-      text-align: center;
-    }
-
-    .login-brand-logo {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 64px;
-      letter-spacing: 0.08em;
-      color: #F0F4F8;
-      line-height: 1;
-      margin-bottom: 0.5rem;
-    }
-
-    .login-brand-logo span { color: #5B9BD5; }
-
-    .login-brand-sub {
-      font-size: 12px;
-      letter-spacing: 0.2em;
-      color: rgba(120,160,200,0.6);
-    }
-
-    .login-brand-line {
-      width: 40px;
-      height: 2px;
-      background: #5B9BD5;
-      margin: 1.5rem auto;
-      border-radius: 2px;
-    }
-
-    .login-brand-desc {
-      font-size: 13px;
-      color: rgba(120,160,200,0.5);
-      line-height: 1.7;
-    }
+    .login-left { display: none; }
 
     .login-right {
-      width: 420px;
-      background: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 3rem 2.5rem;
-      flex-shrink: 0;
+      width: 100%;
+      max-width: 380px;
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 2.5rem;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.06);
     }
 
     .login-form { width: 100%; }
@@ -735,20 +682,11 @@
 
 <!-- LOGIN -->
 <div id="login-screen">
-  <div class="login-left">
-    <div class="login-brand">
-      <div class="login-brand-logo">TAIWAN<br><span>FIMILY</span></div>
-      <div class="login-brand-line"></div>
-      <div class="login-brand-sub">MANAGEMENT SYSTEM</div>
-      <div class="login-brand-desc" style="margin-top:1rem;">
-        LE SSERAFIM 台灣應援站<br>活動管理後台
-      </div>
-    </div>
-  </div>
   <div class="login-right">
     <div class="login-form">
-      <div class="login-form-title">歡迎回來</div>
-      <div class="login-form-sub">請登入管理員帳號</div>
+      <div style="font-size:13px;font-weight:500;letter-spacing:0.1em;color:var(--blue);margin-bottom:0.5rem;">TAIWAN FIMILY</div>
+      <div class="login-form-title">管理員登入</div>
+      <div class="login-form-sub">請輸入您的帳號與密碼</div>
       <div class="field">
         <label>電子郵件</label>
         <input type="email" id="login-email" placeholder="admin@email.com" autocomplete="email">

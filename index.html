@@ -901,8 +901,6 @@
     const btn = document.getElementById('login-btn');
     const err = document.getElementById('login-error');
 
-    if (email !== ADMIN_EMAIL) { err.classList.add('show'); return; }
-
     btn.disabled = true;
     btn.textContent = '登入中…';
     err.classList.remove('show');

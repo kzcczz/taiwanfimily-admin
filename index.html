@@ -154,6 +154,14 @@
       transition: transform 0.3s ease;
     }
 
+    .sidebar.collapsed {
+      transform: translateX(-100%);
+    }
+
+    .main.expanded {
+      margin-left: 0;
+    }
+
     .sidebar-logo {
       padding: 1.5rem;
       border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -285,7 +293,7 @@
     }
 
     .hamburger-admin {
-      display: none;
+      display: flex;
       flex-direction: column;
       gap: 4px;
       cursor: pointer;
@@ -714,23 +722,23 @@
     </div>
     <nav class="sidebar-nav">
       <div class="sidebar-section">主要功能</div>
-      <div class="sidebar-item active" onclick="scrollTo(0,0)">
+      <div class="sidebar-item active" onclick="scrollTo(0,0);closeSidebar()">
         <span class="sidebar-icon">📊</span> 總覽
       </div>
-      <div class="sidebar-item" onclick="document.getElementById('chart-section').scrollIntoView({behavior:'smooth'})">
+      <div class="sidebar-item" onclick="document.getElementById('chart-section').scrollIntoView({behavior:'smooth'});closeSidebar()">
         <span class="sidebar-icon">📈</span> 時段圖表
       </div>
-      <div class="sidebar-item" onclick="document.getElementById('slots-section').scrollIntoView({behavior:'smooth'})">
+      <div class="sidebar-item" onclick="document.getElementById('slots-section').scrollIntoView({behavior:'smooth'});closeSidebar()">
         <span class="sidebar-icon">🗓</span> 名額管理
       </div>
-      <div class="sidebar-item" onclick="document.getElementById('reg-section').scrollIntoView({behavior:'smooth'})">
+      <div class="sidebar-item" onclick="document.getElementById('reg-section').scrollIntoView({behavior:'smooth'});closeSidebar()">
         <span class="sidebar-icon">📋</span> 報名資料
       </div>
       <div class="sidebar-section" style="margin-top:0.5rem;">操作</div>
-      <div class="sidebar-item" onclick="loadAll()">
+      <div class="sidebar-item" onclick="loadAll();closeSidebar()">
         <span class="sidebar-icon">🔄</span> 重新整理
       </div>
-      <div class="sidebar-item" onclick="document.getElementById('quiz-section').scrollIntoView({behavior:'smooth'})">
+      <div class="sidebar-item" onclick="document.getElementById('quiz-section').scrollIntoView({behavior:'smooth'});closeSidebar()">
         <span class="sidebar-icon">❓</span> 題庫管理
       </div>
       <div class="sidebar-item" onclick="showDeleteModal()" style="color:rgba(231,76,60,0.7);">
@@ -747,7 +755,7 @@
   <div class="main">
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:12px;">
-        <div class="hamburger-admin" onclick="toggleSidebar()">
+        <div class="hamburger-admin" id="hamburger-admin" onclick="toggleSidebar()">
           <span></span><span></span><span></span>
         </div>
         <div class="topbar-title">總覽</div>
@@ -936,8 +944,30 @@
   }
 
   function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('open');
-    document.getElementById('sidebar-overlay').classList.toggle('show');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const main = document.querySelector('.main');
+    const isMobile = window.innerWidth <= 768;
+
+    if (isMobile) {
+      const isOpen = sidebar.classList.contains('open');
+      if (isOpen) {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('show');
+      } else {
+        sidebar.classList.add('open');
+        overlay.classList.add('show');
+      }
+    } else {
+      const isCollapsed = sidebar.classList.contains('collapsed');
+      if (isCollapsed) {
+        sidebar.classList.remove('collapsed');
+        main.style.marginLeft = 'var(--sidebar-w)';
+      } else {
+        sidebar.classList.add('collapsed');
+        main.style.marginLeft = '0';
+      }
+    }
   }
 
   function closeSidebar() {

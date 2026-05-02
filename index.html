@@ -916,9 +916,7 @@
 
     if (data.access_token) {
       accessToken = data.access_token;
-      const expiry = Date.now() + 30 * 60 * 1000; // 30 minutes
-      localStorage.setItem('tf_admin_token', accessToken);
-      localStorage.setItem('tf_admin_expiry', expiry);
+
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('admin-screen').style.display = 'block';
       loadAll();
@@ -931,8 +929,7 @@
 
   function doLogout() {
     accessToken = null;
-    localStorage.removeItem('tf_admin_token');
-    localStorage.removeItem('tf_admin_expiry');
+
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('admin-screen').style.display = 'none';
     document.getElementById('login-password').value = '';
@@ -1241,17 +1238,7 @@
         </div>
       </div>
 
-  // Auto-login check on page load
-  (function() {
-    const token = localStorage.getItem('tf_admin_token');
-    const expiry = parseInt(localStorage.getItem('tf_admin_expiry') || '0');
-    if (token && Date.now() < expiry) {
-      accessToken = token;
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('admin-screen').style.display = 'block';
-      loadAll();
-    }
-  })();
+
 </script>
 </body>
 </html>

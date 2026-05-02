@@ -857,11 +857,56 @@
             <tbody id="reg-tbody"></tbody>
           </table>
         </div>
+
+      <!-- QUIZ SECTION -->
+      <div class="section-card" id="quiz-section">
+        <div class="section-head">
+          <div class="section-head-title">❓ 題庫管理</div>
+        </div>
+        <div class="section-body">
+          <div style="margin-bottom:1.25rem;">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:1rem;">新增自訂題目（會出現在踩地雷遊戲中）</div>
+            <div style="display:flex;flex-direction:column;gap:10px;max-width:520px;">
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">題目</label>
+                <input type="text" id="quiz-q" placeholder="輸入題目" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);">
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">選項 A</label><input type="text" id="quiz-opt0" placeholder="選項 A" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);"></div>
+                <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">選項 B</label><input type="text" id="quiz-opt1" placeholder="選項 B" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);"></div>
+                <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">選項 C</label><input type="text" id="quiz-opt2" placeholder="選項 C" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);"></div>
+                <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">選項 D</label><input type="text" id="quiz-opt3" placeholder="選項 D" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);"></div>
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">正確答案</label>
+                <select id="quiz-ans" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);">
+                  <option value="0">A</option>
+                  <option value="1">B</option>
+                  <option value="2">C</option>
+                  <option value="3">D</option>
+                </select>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <button onclick="addQuiz()" style="padding:9px 20px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;">新增題目</button>
+                <span id="quiz-status" style="font-size:13px;color:var(--success);display:none;">✓ 已新增！</span>
+              </div>
+            </div>
+          </div>
+          <div style="border-top:1px solid var(--border);padding-top:1.25rem;">
+            <div style="font-size:13px;font-weight:500;margin-bottom:0.75rem;">現有自訂題目 <span id="quiz-count" style="color:var(--muted);font-size:12px;font-weight:400;"></span></div>
+            <div id="quiz-list"><div style="color:var(--muted);font-size:13px;">載入中…</div></div>
+          </div>
+        </div>
+      </div>
+
+
       </div>
 
     </div>
   </div>
 </div>
+
+
 
 <!-- DELETE MODAL -->
 <div class="modal-overlay" id="delete-modal">
@@ -1227,47 +1272,6 @@
     alert('✓ 所有資料已清除，時段名額已重置');
   }
 </script>
-      <!-- QUIZ SECTION -->
-      <div class="section-card" id="quiz-section">
-        <div class="section-head">
-          <div class="section-head-title">❓ 題庫管理</div>
-        </div>
-        <div class="section-body">
-          <div style="margin-bottom:1.25rem;">
-            <div style="font-size:13px;color:var(--muted);margin-bottom:1rem;">新增自訂題目（會出現在踩地雷遊戲中）</div>
-            <div style="display:flex;flex-direction:column;gap:10px;max-width:520px;">
-              <div>
-                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">題目</label>
-                <input type="text" id="quiz-q" placeholder="輸入題目" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);">
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">選項 A</label><input type="text" id="quiz-opt0" placeholder="選項 A" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);"></div>
-                <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">選項 B</label><input type="text" id="quiz-opt1" placeholder="選項 B" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);"></div>
-                <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">選項 C</label><input type="text" id="quiz-opt2" placeholder="選項 C" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);"></div>
-                <div><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">選項 D</label><input type="text" id="quiz-opt3" placeholder="選項 D" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);"></div>
-              </div>
-              <div>
-                <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px;">正確答案</label>
-                <select id="quiz-ans" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;outline:none;background:#fff;color:var(--text);">
-                  <option value="0">A</option>
-                  <option value="1">B</option>
-                  <option value="2">C</option>
-                  <option value="3">D</option>
-                </select>
-              </div>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <button onclick="addQuiz()" style="padding:9px 20px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;">新增題目</button>
-                <span id="quiz-status" style="font-size:13px;color:var(--success);display:none;">✓ 已新增！</span>
-              </div>
-            </div>
-          </div>
-          <div style="border-top:1px solid var(--border);padding-top:1.25rem;">
-            <div style="font-size:13px;font-weight:500;margin-bottom:0.75rem;">現有自訂題目 <span id="quiz-count" style="color:var(--muted);font-size:12px;font-weight:400;"></span></div>
-            <div id="quiz-list"><div style="color:var(--muted);font-size:13px;">載入中…</div></div>
-          </div>
-        </div>
-      </div>
-
 
 
 </body>

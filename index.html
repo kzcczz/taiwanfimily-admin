@@ -1210,22 +1210,64 @@
     const el = document.getElementById('quiz-list');
     const count = document.getElementById('quiz-count');
     if(!data || !data.length) {
-      el.innerHTML = '<div style="color:var(--muted);font-size:13px;">還沒有自訂題目</div>';
+      el.innerHTML = '<div style="color:var(--muted);font-size:13px;">還沒有題目</div>';
       count.textContent = '';
       return;
     }
     count.textContent = '（' + data.length + ' 題）';
+    const labels = ['A','B','C','D'];
     el.innerHTML = data.map(r => {
       const opts = JSON.parse(r.options);
-      const labels = ['A','B','C','D'];
-      return `<div style="background:var(--bg);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;">
-        <div style="font-weight:500;margin-bottom:6px;">${r.question}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-          ${opts.map((o,i) => `<span style="padding:2px 8px;border-radius:12px;background:${i===r.answer?'rgba(39,174,96,0.15)':'rgba(0,0,0,0.05)'};color:${i===r.answer?'var(--success)':'var(--muted)'};">${labels[i]}: ${o}</span>`).join('')}
+      return `<div id="quiz-row-${r.id}" style="background:var(--bg);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;">
+        <div id="quiz-view-${r.id}">
+          <div style="font-weight:500;margin-bottom:6px;">${r.question}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            ${opts.map((o,i) => `<span style="padding:2px 8px;border-radius:12px;background:${i===r.answer?'rgba(39,174,96,0.15)':'rgba(0,0,0,0.05)'};color:${i===r.answer?'var(--success)':'var(--muted)'};">${labels[i]}: ${o}</span>`).join('')}
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button onclick="editQuiz('${r.id}')" style="font-size:11px;color:var(--blue);background:transparent;border:none;cursor:pointer;padding:0;">✏️ 編輯</button>
+            <button onclick="deleteQuiz('${r.id}')" style="font-size:11px;color:var(--danger);background:transparent;border:none;cursor:pointer;padding:0;">🗑 刪除</button>
+          </div>
         </div>
-        <button onclick="deleteQuiz('${r.id}')" style="font-size:11px;color:var(--danger);background:transparent;border:none;cursor:pointer;padding:0;">🗑 刪除</button>
+        <div id="quiz-edit-${r.id}" style="display:none;">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <input id="eq-q-${r.id}" value="${r.question.replace(/"/g,'&quot;')}" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:var(--text);">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+              ${opts.map((o,i) => `<input id="eq-opt${i}-${r.id}" value="${o.replace(/"/g,'&quot;')}" placeholder="選項 ${labels[i]}" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:var(--text);">`).join('')}
+            </div>
+            <select id="eq-ans-${r.id}" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;font-family:inherit;outline:none;background:#fff;color:var(--text);">
+              ${labels.map((l,i) => `<option value="${i}" ${i===r.answer?'selected':''}>${l}</option>`).join('')}
+            </select>
+            <div style="display:flex;gap:8px;">
+              <button onclick="saveQuiz('${r.id}')" style="padding:6px 14px;background:var(--blue);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;">儲存</button>
+              <button onclick="cancelEdit('${r.id}')" style="padding:6px 14px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:7px;font-size:12px;font-family:inherit;cursor:pointer;">取消</button>
+            </div>
+          </div>
+        </div>
       </div>`;
     }).join('');
+  }
+
+  function editQuiz(id) {
+    document.getElementById('quiz-view-' + id).style.display = 'none';
+    document.getElementById('quiz-edit-' + id).style.display = 'block';
+  }
+
+  function cancelEdit(id) {
+    document.getElementById('quiz-view-' + id).style.display = 'block';
+    document.getElementById('quiz-edit-' + id).style.display = 'none';
+  }
+
+  async function saveQuiz(id) {
+    const q = document.getElementById('eq-q-' + id).value.trim();
+    const opts = [0,1,2,3].map(i => document.getElementById('eq-opt' + i + '-' + id).value.trim());
+    const ans = parseInt(document.getElementById('eq-ans-' + id).value);
+    if(!q || opts.some(o => !o)) { alert('請填寫所有欄位！'); return; }
+    await sbFetch('/rest/v1/quiz_questions?id=eq.' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ question: q, options: JSON.stringify(opts), answer: ans })
+    });
+    loadQuizList();
   }
 
   function showDeleteModal() {

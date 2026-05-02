@@ -948,18 +948,6 @@
     document.getElementById('sidebar-overlay').classList.remove('show');
   }
 
-  // Auto-login check
-  (function checkSavedToken() {
-    const token = localStorage.getItem('tf_admin_token');
-    const expiry = parseInt(localStorage.getItem('tf_admin_expiry') || '0');
-    if (token && Date.now() < expiry) {
-      accessToken = token;
-      document.getElementById('login-screen').style.display = 'none';
-      document.getElementById('admin-screen').style.display = 'block';
-      loadAll();
-    }
-  })();
-
   async function loadAll() {
     await Promise.all([loadSlots(), loadRegistrations(), loadChart(), loadQuizList()]);
   }
@@ -1253,6 +1241,17 @@
         </div>
       </div>
 
+  // Auto-login check on page load
+  (function() {
+    const token = localStorage.getItem('tf_admin_token');
+    const expiry = parseInt(localStorage.getItem('tf_admin_expiry') || '0');
+    if (token && Date.now() < expiry) {
+      accessToken = token;
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('admin-screen').style.display = 'block';
+      loadAll();
+    }
+  })();
 </script>
 </body>
 </html>

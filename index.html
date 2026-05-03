@@ -725,7 +725,7 @@ async function addQuiz() {
  [0,1,2,3].forEach(i=>document.getElementById('quiz-opt'+i).value='');
  const s=document.getElementById('quiz-status');
  s.style.display='inline';setTimeout(()=>s.style.display='none',2000);
- loadQuizList();
+ loadQuizList():
 }
 
 async function deleteQuiz(id) {
@@ -754,11 +754,11 @@ async function saveQuiz(id) {
  console.log('Save result:', result);
  if(result && (result.ok || result[0])) { /* success */ }
  else if(result && result.code) { alert('錯誤：' + JSON.stringify(result)); }
- loadQuizList();
+ loadQuizList():
 }
 
 async function loadQuizList() {
-  const data=await sbFetch('/rest/v1/quiz_questions?select=id,question,options,answer&order=created_at.desc',{},SUPABASE_KEY);
+  const data=await sbFetch('/rest/v1/quiz_questions?select=id,question,options,answer&order=created_at.desc&t='+Date.now(),{},SUPABASE_KEY);
   const el=document.getElementById('quiz-list');
   const cnt=document.getElementById('quiz-count');
   if(!data||!data.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;">還沒有題目</div>';cnt.textContent='';return;}

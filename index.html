@@ -560,7 +560,7 @@ async function saveSlot(id) {
 }
 
 async function loadRegistrations() {
- const data=await sbFetch('/rest/v1/registrations?select=*&order=created_at.desc');
+ const data=await sbFetch('/rest/v1/registrations?select=*&order=created_at.asc');
  allRegs=data||[];
  const total=allRegs.reduce((s,r)=>s+(parseInt(r.people)||0),0);
  document.getElementById('stat-total').textContent=total;
@@ -754,7 +754,7 @@ async function saveQuiz(id) {
 }
 
 async function loadQuizList() {
-  const data=await sbFetch('/rest/v1/quiz_questions?select=id,question,options,answer&order=created_at.desc',{},SUPABASE_KEY);
+  const data=await sbFetch('/rest/v1/quiz_questions?select=id,question,options,answer&order=created_at.asc',{},SUPABASE_KEY);
   const el=document.getElementById('quiz-list');
   const cnt=document.getElementById('quiz-count');
   if(!data||!data.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;">還沒有題目</div>';cnt.textContent='';return;}

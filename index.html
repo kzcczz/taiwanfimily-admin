@@ -749,8 +749,14 @@ async function saveQuiz(id) {
  const ans=parseInt(document.getElementById('eq-a-'+id).value);
  if(!q||opts.some(o=>!o)){alert('請填寫所有欄位！');return;}
  await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'PATCH',body:JSON.stringify({question:q,options:opts,answer:ans})}, accessToken);
+ // Update view inline without reloading list
+ const labels=['A','B','C','D'];
+ const safeQ=q.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ const safeOpts=opts.map(o=>String(o).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
+ const qv=document.getElementById('qv-'+id);
+ qv.querySelector('.quiz-item-q').textContent=q;
+ qv.querySelector('.quiz-tags').innerHTML=safeOpts.map((o,i)=>'<span class="quiz-tag-opt'+(i===ans?' correct':'')+'">'+labels[i]+': '+o+'</span>').join('');
  cancelEdit(id);
- await loadQuizList();
 }
 
 async function loadQuizList() {

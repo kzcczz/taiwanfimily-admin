@@ -1207,7 +1207,7 @@
   }
 
   async function loadQuizList() {
-    const data = await sbFetch('/rest/v1/quiz_questions?select=id,question,options,answer&order=created_at.desc');
+    const data = await sbFetch('/rest/v1/quiz_questions?select=id,question,options,answer&order=created_at.desc', {}, SUPABASE_KEY);
     const el = document.getElementById('quiz-list');
     const count = document.getElementById('quiz-count');
     if(!data || !data.length) {

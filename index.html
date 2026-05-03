@@ -914,14 +914,21 @@ async function loadSurvey() {
     const el = document.getElementById(containerId);
     if(!ranks.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無資料</div>'; return; }
     const max = ranks[0][1];
+    const medals = ['🥇','🥈','🥉'];
+    const colors = ['#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe'];
     el.innerHTML = ranks.map(([name, score], i) => {
       const pct = Math.round((score / max) * 100);
-      return '<div class="bar-row" style="margin-bottom:8px;">'
-        + '<div class="bar-label" style="width:70px;text-align:right;">' + (i+1) + '. ' + name + '</div>'
-        + '<div class="bar-track"><div class="bar-fill bar-mid" style="width:' + pct + '%">'
-        + (pct >= 20 ? '<span class="bar-fill-label">' + score + '分</span>' : '')
-        + '</div></div>'
-        + '</div>';
+      const color = colors[i] || '#bfdbfe';
+      return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">'
+        + '<div style="width:28px;text-align:center;font-size:18px;flex-shrink:0;">' + (medals[i] || (i+1)) + '</div>'
+        + '<div style="flex:1;">'
+        + '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">'
+        + '<span style="font-size:14px;font-weight:600;color:#111827;">' + name + '</span>'
+        + '<span style="font-size:12px;color:#6b7280;">' + score + ' 分</span>'
+        + '</div>'
+        + '<div style="height:10px;background:#f3f4f6;border-radius:10px;overflow:hidden;">'
+        + '<div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:10px;transition:width 0.6s ease;"></div>'
+        + '</div></div></div>';
     }).join('');
   }
 

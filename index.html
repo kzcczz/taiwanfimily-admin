@@ -751,7 +751,7 @@ async function saveQuiz(id) {
  console.log('Saving:', {id, q, opts, ans});
  const result = await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({question:q,options:opts,answer:ans})}, accessToken);
  console.log('Save result:', result);
- if(result && result[0]) { alert('儲存成功！'); }
+ if(result && (result.ok || result[0])) { /* success */ }
  else if(result && result.code) { alert('錯誤：' + JSON.stringify(result)); }
  loadQuizList();
 }

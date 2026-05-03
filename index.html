@@ -753,44 +753,40 @@ async function saveQuiz(id) {
 }
 
 async function loadQuizList() {
- const data=await sbFetch('/rest/v1/quiz_questions?select=id,question,options,answer&order=created_at.desc',{},SUPABASE_KEY);
- const el=document.getElementById('quiz-list');
- const cnt=document.getElementById('quiz-count');
- if(!data||!data.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;">還沒有題目</div>';cnt.textContent='';return;}
- cnt.textContent='（'+data.length+' 題）';
- const labels=['A','B','C','D'];
- const items=[];
- for(const r of data){
- try{
- const opts=JSON.parse(r.options);
- const safeQ=r.question.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
- const safeOpts=opts.map(o=>String(o).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
- items.push(`<div class="quiz-item">
- <div id="qv-${r.id}">
- <div class="quiz-item-q">${safeQ}</div>
- <div class="quiz-tags">${safeOpts.map((o,i)=>`<span class="quiz-tag-opt${i===r.answer?' correct':''}">${labels[i]}: ${o}</span>`).join('')}</div>
- <div class="quiz-actions">
- <button class="btn btn-sm btn-ghost" onclick="editQuiz('${r.id}')">️ 編輯</button>
- <button class="btn btn-sm btn-danger" onclick="deleteQuiz('${r.id}')"> 刪除</button>
- </div>
- </div>
- <div id="qe-${r.id}" class="quiz-edit-form">
- <input id="eq-q-${r.id}" class="quiz-input" value="${safeQ.replace(/"/g,'&quot;')}">
- <div class="quiz-opts-grid">
- ${safeOpts.map((o,i)=>`<input id="eq-o${i}-${r.id}" class="quiz-input" value="${o.replace(/"/g,'&quot;')}" placeholder="選項 ${labels[i]}">`).join('')}
- </div>
- <select id="eq-a-${r.id}" class="quiz-select">
- ${labels.map((l,i)=>`<option value="${i}"${i===r.answer?' selected':''}>正確答案：${l}</option>`).join('')}
- </select>
- <div style="display:flex;gap:8px;">
- <button class="btn btn-primary btn-sm" onclick="saveQuiz('${r.id}')">儲存</button>
- <button class="btn btn-ghost btn-sm" onclick="cancelEdit('${r.id}')">取消</button>
- </div>
- </div>
- </div>`);
- }catch(e){console.error('Quiz render error',r.id,e);}
- }
- el.innerHTML=items.join('');
+  const data=await sbFetch('/rest/v1/quiz_questions?select=id,question,options,answer&order=created_at.desc',{},SUPABASE_KEY);
+  const el=document.getElementById('quiz-list');
+  const cnt=document.getElementById('quiz-count');
+  if(!data||!data.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;">還沒有題目</div>';cnt.textContent='';return;}
+  cnt.textContent='（'+data.length+' 題）';
+  const labels=['A','B','C','D'];
+  const items=[];
+  for(const r of data){
+    try{
+      // jsonb from Supabase comes as array already
+      const opts = Array.isArray(r.options) ? r.options : (typeof r.options==='string' ? JSON.parse(r.options) : r.options);
+      const safeQ=(r.question||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const safeOpts=opts.map(o=>String(o||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
+      items.push(
+        '<div class="quiz-item">'
+        +'<div id="qv-'+r.id+'">'
+        +'<div class="quiz-item-q">'+safeQ+'</div>'
+        +'<div class="quiz-tags">'+safeOpts.map((o,i)=>'<span class="quiz-tag-opt'+(i===r.answer?' correct':'')+'">'+labels[i]+': '+o+'</span>').join('')+'</div>'
+        +'<div class="quiz-actions">'
+        +'<button class="btn btn-sm btn-ghost" onclick="editQuiz(''+r.id+'')">編輯</button> '
+        +'<button class="btn btn-sm btn-danger" onclick="deleteQuiz(''+r.id+'')">刪除</button>'
+        +'</div></div>'
+        +'<div id="qe-'+r.id+'" class="quiz-edit-form">'
+        +'<input id="eq-q-'+r.id+'" class="quiz-input" value="'+safeQ.replace(/"/g,'&quot;')+'">'
+        +'<div class="quiz-opts-grid">'+safeOpts.map((o,i)=>'<input id="eq-o'+i+'-'+r.id+'" class="quiz-input" value="'+o.replace(/"/g,'&quot;')+'" placeholder="選項 '+labels[i]+'">').join('')+'</div>'
+        +'<select id="eq-a-'+r.id+'" class="quiz-select">'+labels.map((l,i)=>'<option value="'+i+'"'+(i===r.answer?' selected':'')+'>正確答案：'+l+'</option>').join('')+'</select>'
+        +'<div style="display:flex;gap:8px;">'
+        +'<button class="btn btn-primary btn-sm" onclick="saveQuiz(''+r.id+'')">儲存</button> '
+        +'<button class="btn btn-ghost btn-sm" onclick="cancelEdit(''+r.id+'')">取消</button>'
+        +'</div></div></div>'
+      );
+    }catch(e){console.error('Quiz render error',r.id,e,'opts:',r.options);}
+  }
+  el.innerHTML=items.length>0?items.join(''):'<div style="color:var(--danger)">渲染失敗，請查看 Console</div>';
 }
 
 // AUTO LOGIN

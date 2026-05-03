@@ -441,6 +441,62 @@
  </div>
 </div>
 
+<!-- SURVEY PAGE -->
+<div class="sub-page" id="survey-page">
+  <nav class="sub-nav">
+    <div class="sub-nav-left">
+      <button class="back-btn" onclick="showHome()">← 返回</button>
+      <div class="sub-nav-title">應援調查後台</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="loadSurvey()">重新整理</button>
+    </div>
+  </nav>
+  <div class="sub-content">
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-label">總回覆數</div><div class="stat-value" id="survey-total">—</div></div>
+      <div class="stat-card"><div class="stat-label">平均場內比例</div><div class="stat-value" style="color:#2563eb;" id="survey-avg-indoor">—</div></div>
+      <div class="stat-card"><div class="stat-label">平均場外比例</div><div class="stat-value" style="color:#059669;" id="survey-avg-outdoor">—</div></div>
+    </div>
+
+    <!-- INDOOR RANK -->
+    <div class="section-card">
+      <div class="section-head"><div class="section-head-title">場內應援 — 綜合排名</div></div>
+      <div class="section-body"><div id="indoor-result"><div style="color:var(--muted);font-size:13px;">載入中…</div></div></div>
+    </div>
+
+    <!-- OUTDOOR RANK -->
+    <div class="section-card">
+      <div class="section-head"><div class="section-head-title">場外應援 — 綜合排名</div></div>
+      <div class="section-body"><div id="outdoor-result"><div style="color:var(--muted);font-size:13px;">載入中…</div></div></div>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-head-title">其他回饋意見 <span id="feedback-count" style="color:var(--muted);font-size:12px;font-weight:400;"></span></div>
+      </div>
+      <div class="section-body"><div id="feedback-list"><div style="color:var(--muted);font-size:13px;">載入中…</div></div></div>
+    </div>
+
+    <!-- RAW DATA -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-head-title">所有回覆 <span id="survey-count" style="color:var(--muted);font-size:12px;font-weight:400;"></span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>時間</th><th>場內%</th><th>場外%</th><th>場內排序</th><th>場外排序</th><th>意見</th></tr></thead>
+          <tbody id="survey-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <!-- DELETE MODAL -->
 <div class="modal-overlay" id="delete-modal">
  <div class="modal">
@@ -807,6 +863,82 @@ async function loadQuizList() {
   el.innerHTML='';
   if(items.length>0) items.forEach(item=>el.appendChild(item));
   else el.innerHTML='<div style="color:var(--danger)">渲染失敗，請查看 Console</div>';
+}
+
+// SURVEY
+async function loadSurvey() {
+  const data = await sbFetch('/rest/v1/concert_survey?select=*&order=submitted_at.desc', {}, SUPABASE_KEY);
+  if(!data || !data.length) {
+    document.getElementById('survey-total').textContent = '0';
+    document.getElementById('survey-avg-indoor').textContent = '—';
+    document.getElementById('survey-avg-outdoor').textContent = '—';
+    document.getElementById('indoor-result').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
+    document.getElementById('outdoor-result').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
+    document.getElementById('feedback-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回饋</div>';
+    document.getElementById('survey-tbody').innerHTML = '<tr class="empty-row"><td colspan="6">尚無資料</td></tr>';
+    return;
+  }
+
+  // Stats
+  document.getElementById('survey-total').textContent = data.length;
+  const avgIndoor = Math.round(data.reduce((s,r) => s + r.ratio_indoor, 0) / data.length);
+  document.getElementById('survey-avg-indoor').textContent = avgIndoor + '%';
+  document.getElementById('survey-avg-outdoor').textContent = (100 - avgIndoor) + '%';
+  document.getElementById('survey-count').textContent = '（' + data.length + ' 筆）';
+
+  // Rank aggregation
+  function calcRanks(field) {
+    const scores = {};
+    data.forEach(r => {
+      const ranks = Array.isArray(r[field]) ? r[field] : JSON.parse(r[field] || '[]');
+      const total = ranks.length;
+      ranks.forEach(item => {
+        if(!scores[item.name]) scores[item.name] = 0;
+        scores[item.name] += (total - item.rank + 1);
+      });
+    });
+    return Object.entries(scores).sort((a,b) => b[1]-a[1]);
+  }
+
+  function renderRanks(containerId, ranks) {
+    const el = document.getElementById(containerId);
+    if(!ranks.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無資料</div>'; return; }
+    const max = ranks[0][1];
+    el.innerHTML = ranks.map(([name, score], i) => {
+      const pct = Math.round((score / max) * 100);
+      return '<div class="bar-row" style="margin-bottom:8px;">'
+        + '<div class="bar-label" style="width:70px;text-align:right;">' + (i+1) + '. ' + name + '</div>'
+        + '<div class="bar-track"><div class="bar-fill bar-mid" style="width:' + pct + '%">'
+        + (pct >= 20 ? '<span class="bar-fill-label">' + score + '分</span>' : '')
+        + '</div></div>'
+        + '</div>';
+    }).join('');
+  }
+
+  renderRanks('indoor-result', calcRanks('indoor_rank'));
+  renderRanks('outdoor-result', calcRanks('outdoor_rank'));
+
+  // Feedback
+  const feedbacks = data.filter(r => r.feedback);
+  document.getElementById('feedback-count').textContent = '（' + feedbacks.length + ' 則）';
+  document.getElementById('feedback-list').innerHTML = feedbacks.length
+    ? feedbacks.map(r => '<div style="padding:10px 14px;background:#f9fafb;border-radius:8px;margin-bottom:8px;font-size:13px;border:1px solid #e5e7eb;">'
+        + '<div style="color:#6b7280;font-size:11px;margin-bottom:4px;">' + new Date(r.submitted_at).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'}) + '</div>'
+        + r.feedback + '</div>').join('')
+    : '<div style="color:var(--muted);font-size:13px;">尚無回饋意見</div>';
+
+  // Table
+  document.getElementById('survey-tbody').innerHTML = data.map(r => {
+    const indoor = (Array.isArray(r.indoor_rank) ? r.indoor_rank : JSON.parse(r.indoor_rank||'[]')).map(i=>i.rank+'.'+i.name).join(' ');
+    const outdoor = (Array.isArray(r.outdoor_rank) ? r.outdoor_rank : JSON.parse(r.outdoor_rank||'[]')).map(i=>i.rank+'.'+i.name).join(' ');
+    const d = new Date(r.submitted_at).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return '<tr><td style="font-size:11px;color:#6b7280;white-space:nowrap">' + d + '</td>'
+      + '<td style="color:#2563eb;font-weight:500;">' + r.ratio_indoor + '%</td>'
+      + '<td style="color:#059669;font-weight:500;">' + r.ratio_outdoor + '%</td>'
+      + '<td style="font-size:12px;">' + indoor + '</td>'
+      + '<td style="font-size:12px;">' + outdoor + '</td>'
+      + '<td style="font-size:12px;color:#6b7280;">' + (r.feedback||'—') + '</td></tr>';
+  }).join('');
 }
 
 // AUTO LOGIN

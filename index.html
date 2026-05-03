@@ -719,7 +719,7 @@ async function addQuiz() {
  const opts=[0,1,2,3].map(i=>document.getElementById('quiz-opt'+i).value.trim());
  const ans=parseInt(document.getElementById('quiz-ans').value);
  if(!q||opts.some(o=>!o)){alert('請填寫題目和所有選項！');return;}
- await sbFetch('/rest/v1/quiz_questions',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({question:q,options:JSON.stringify(opts),answer:ans})});
+ await sbFetch('/rest/v1/quiz_questions',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({question:q,options:opts,answer:ans})});
  document.getElementById('quiz-q').value='';
  [0,1,2,3].forEach(i=>document.getElementById('quiz-opt'+i).value='');
  const s=document.getElementById('quiz-status');
@@ -748,7 +748,7 @@ async function saveQuiz(id) {
  const opts=[0,1,2,3].map(i=>document.getElementById('eq-o'+i+'-'+id).value.trim());
  const ans=parseInt(document.getElementById('eq-a-'+id).value);
  if(!q||opts.some(o=>!o)){alert('請填寫所有欄位！');return;}
- await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'PATCH',body:JSON.stringify({question:q,options:JSON.stringify(opts),answer:ans})});
+ await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'PATCH',body:JSON.stringify({question:q,options:opts,answer:ans})});
  loadQuizList();
 }
 

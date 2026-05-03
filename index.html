@@ -748,7 +748,11 @@ async function saveQuiz(id) {
  const opts=[0,1,2,3].map(i=>document.getElementById('eq-o'+i+'-'+id).value.trim());
  const ans=parseInt(document.getElementById('eq-a-'+id).value);
  if(!q||opts.some(o=>!o)){alert('請填寫所有欄位！');return;}
- await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'PATCH',body:JSON.stringify({question:q,options:opts,answer:ans})});
+ console.log('Saving:', {id, q, opts, ans});
+ const result = await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({question:q,options:opts,answer:ans})});
+ console.log('Save result:', result);
+ if(result && result[0]) { alert('儲存成功！'); }
+ else if(result && result.code) { alert('錯誤：' + JSON.stringify(result)); }
  loadQuizList();
 }
 

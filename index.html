@@ -766,27 +766,40 @@ async function loadQuizList() {
       const opts = Array.isArray(r.options) ? r.options : (typeof r.options==='string' ? JSON.parse(r.options) : r.options);
       const safeQ=(r.question||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       const safeOpts=opts.map(o=>String(o||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
-      items.push(
-        '<div class="quiz-item">'
-        +'<div id="qv-'+r.id+'">'
+      const rid=r.id;
+      const div=document.createElement('div');
+      div.className='quiz-item';
+      div.innerHTML=
+        '<div id="qv-'+rid+'">'
         +'<div class="quiz-item-q">'+safeQ+'</div>'
         +'<div class="quiz-tags">'+safeOpts.map((o,i)=>'<span class="quiz-tag-opt'+(i===r.answer?' correct':'')+'">'+labels[i]+': '+o+'</span>').join('')+'</div>'
         +'<div class="quiz-actions">'
-        +'<button class="btn btn-sm btn-ghost" onclick="editQuiz(''+r.id+'')">編輯</button> '
-        +'<button class="btn btn-sm btn-danger" onclick="deleteQuiz(''+r.id+'')">刪除</button>'
+        +'<button class="btn btn-sm btn-ghost" data-action="edit" data-id="'+rid+'">編輯</button> '
+        +'<button class="btn btn-sm btn-danger" data-action="delete" data-id="'+rid+'">刪除</button>'
         +'</div></div>'
-        +'<div id="qe-'+r.id+'" class="quiz-edit-form">'
-        +'<input id="eq-q-'+r.id+'" class="quiz-input" value="'+safeQ.replace(/"/g,'&quot;')+'">'
-        +'<div class="quiz-opts-grid">'+safeOpts.map((o,i)=>'<input id="eq-o'+i+'-'+r.id+'" class="quiz-input" value="'+o.replace(/"/g,'&quot;')+'" placeholder="選項 '+labels[i]+'">').join('')+'</div>'
-        +'<select id="eq-a-'+r.id+'" class="quiz-select">'+labels.map((l,i)=>'<option value="'+i+'"'+(i===r.answer?' selected':'')+'>正確答案：'+l+'</option>').join('')+'</select>'
+        +'<div id="qe-'+rid+'" class="quiz-edit-form">'
+        +'<input id="eq-q-'+rid+'" class="quiz-input" value="'+safeQ.replace(/"/g,'&quot;')+'">'
+        +'<div class="quiz-opts-grid">'+safeOpts.map((o,i)=>'<input id="eq-o'+i+'-'+rid+'" class="quiz-input" value="'+o.replace(/"/g,'&quot;')+'" placeholder="選項 '+labels[i]+'">').join('')+'</div>'
+        +'<select id="eq-a-'+rid+'" class="quiz-select">'+labels.map((l,i)=>'<option value="'+i+'"'+(i===r.answer?' selected':'')+'>正確答案：'+l+'</option>').join('')+'</select>'
         +'<div style="display:flex;gap:8px;">'
-        +'<button class="btn btn-primary btn-sm" onclick="saveQuiz(''+r.id+'')">儲存</button> '
-        +'<button class="btn btn-ghost btn-sm" onclick="cancelEdit(''+r.id+'')">取消</button>'
-        +'</div></div></div>'
-      );
+        +'<button class="btn btn-primary btn-sm" data-action="save" data-id="'+rid+'">儲存</button> '
+        +'<button class="btn btn-ghost btn-sm" data-action="cancel" data-id="'+rid+'">取消</button>'
+        +'</div></div>';
+      div.addEventListener('click',function(e){{
+        const btn=e.target.closest('button[data-action]');
+        if(!btn)return;
+        const action=btn.dataset.action, id=btn.dataset.id;
+        if(action==='edit')editQuiz(id);
+        else if(action==='delete')deleteQuiz(id);
+        else if(action==='save')saveQuiz(id);
+        else if(action==='cancel')cancelEdit(id);
+      }});
+      items.push(div);
     }catch(e){console.error('Quiz render error',r.id,e,'opts:',r.options);}
   }
-  el.innerHTML=items.length>0?items.join(''):'<div style="color:var(--danger)">渲染失敗，請查看 Console</div>';
+  el.innerHTML='';
+  if(items.length>0) items.forEach(item=>el.appendChild(item));
+  else el.innerHTML='<div style="color:var(--danger)">渲染失敗，請查看 Console</div>';
 }
 
 // AUTO LOGIN

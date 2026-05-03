@@ -719,7 +719,7 @@ async function addQuiz() {
  const opts=[0,1,2,3].map(i=>document.getElementById('quiz-opt'+i).value.trim());
  const ans=parseInt(document.getElementById('quiz-ans').value);
  if(!q||opts.some(o=>!o)){alert('請填寫題目和所有選項！');return;}
- await sbFetch('/rest/v1/quiz_questions',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({question:q,options:opts,answer:ans})});
+ await sbFetch('/rest/v1/quiz_questions',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({question:q,options:opts,answer:ans})}, accessToken);
  document.getElementById('quiz-q').value='';
  [0,1,2,3].forEach(i=>document.getElementById('quiz-opt'+i).value='');
  const s=document.getElementById('quiz-status');
@@ -729,7 +729,7 @@ async function addQuiz() {
 
 async function deleteQuiz(id) {
  if(!confirm('確定要刪除這題嗎？'))return;
- await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'DELETE'});
+ await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'DELETE'}, accessToken);
  loadQuizList();
 }
 
@@ -749,7 +749,7 @@ async function saveQuiz(id) {
  const ans=parseInt(document.getElementById('eq-a-'+id).value);
  if(!q||opts.some(o=>!o)){alert('請填寫所有欄位！');return;}
  console.log('Saving:', {id, q, opts, ans});
- const result = await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({question:q,options:opts,answer:ans})});
+ const result = await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({question:q,options:opts,answer:ans})}, accessToken);
  console.log('Save result:', result);
  if(result && result[0]) { alert('儲存成功！'); }
  else if(result && result.code) { alert('錯誤：' + JSON.stringify(result)); }

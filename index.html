@@ -483,6 +483,22 @@
       </div>
     </div>
 
+    <!-- OUTDOOR ACTIVITY -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-head-title">希望的場外活動 <span id="outdoor-activity-count" style="color:var(--muted);font-size:12px;font-weight:400;"></span></div>
+      </div>
+      <div class="section-body"><div id="outdoor-activity-list"><div style="color:var(--muted);font-size:13px;">載入中…</div></div></div>
+    </div>
+
+    <!-- CROWDFUND WISH -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-head-title">集資禮許願 <span id="crowdfund-count" style="color:var(--muted);font-size:12px;font-weight:400;"></span></div>
+      </div>
+      <div class="section-body"><div id="crowdfund-list"><div style="color:var(--muted);font-size:13px;">載入中…</div></div></div>
+    </div>
+
     <!-- FEEDBACK -->
     <div class="section-card">
       <div class="section-head">
@@ -498,7 +514,7 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>時間</th><th>場內%</th><th>場外%</th><th>場內排序</th><th>場外排序</th><th>意見</th></tr></thead>
+          <thead><tr><th>時間</th><th>場內%</th><th>場外%</th><th>場內排序</th><th>場外排序</th><th>場外活動</th><th>集資禮</th><th>其他意見</th></tr></thead>
           <tbody id="survey-tbody"></tbody>
         </table>
       </div>
@@ -957,14 +973,20 @@ async function loadSurvey() {
   renderRanks('indoor-result', calcRanks('indoor_rank'));
   renderRanks('outdoor-result', calcRanks('outdoor_rank'));
 
-  // Feedback
-  const feedbacks = data.filter(r => r.feedback);
-  document.getElementById('feedback-count').textContent = '（' + feedbacks.length + ' 則）';
-  document.getElementById('feedback-list').innerHTML = feedbacks.length
-    ? feedbacks.map(r => '<div style="padding:10px 14px;background:#f9fafb;border-radius:8px;margin-bottom:8px;font-size:13px;border:1px solid #e5e7eb;">'
-        + '<div style="color:#6b7280;font-size:11px;margin-bottom:4px;">' + new Date(r.submitted_at).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'}) + '</div>'
-        + r.feedback + '</div>').join('')
-    : '<div style="color:var(--muted);font-size:13px;">尚無回饋意見</div>';
+  // Helper to render text responses
+  function renderTextList(containerId, countId, data, field, emptyMsg) {
+    const items = data.filter(r => r[field]);
+    document.getElementById(countId).textContent = '（' + items.length + ' 則）';
+    document.getElementById(containerId).innerHTML = items.length
+      ? items.map(r => '<div style="padding:10px 14px;background:#f9fafb;border-radius:8px;margin-bottom:8px;font-size:13px;border:1px solid #e5e7eb;">'
+          + '<div style="color:#6b7280;font-size:11px;margin-bottom:4px;">' + new Date(r.submitted_at).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'}) + '</div>'
+          + r[field] + '</div>').join('')
+      : '<div style="color:var(--muted);font-size:13px;">' + emptyMsg + '</div>';
+  }
+
+  renderTextList('outdoor-activity-list', 'outdoor-activity-count', data, 'outdoor_activity', '尚無回覆');
+  renderTextList('crowdfund-list', 'crowdfund-count', data, 'crowdfund_wish', '尚無回覆');
+  renderTextList('feedback-list', 'feedback-count', data, 'feedback', '尚無回饋意見');
 
   // Table
   document.getElementById('survey-tbody').innerHTML = data.map(r => {
@@ -976,6 +998,8 @@ async function loadSurvey() {
       + '<td style="color:#059669;font-weight:500;">' + r.ratio_outdoor + '%</td>'
       + '<td style="font-size:12px;">' + indoor + '</td>'
       + '<td style="font-size:12px;">' + outdoor + '</td>'
+      + '<td style="font-size:12px;color:#6b7280;">' + (r.outdoor_activity||'—') + '</td>'
+      + '<td style="font-size:12px;color:#6b7280;">' + (r.crowdfund_wish||'—') + '</td>'
       + '<td style="font-size:12px;color:#6b7280;">' + (r.feedback||'—') + '</td></tr>';
   }).join('');
 }

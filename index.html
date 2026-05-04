@@ -922,8 +922,14 @@ async function loadSurvey() {
     document.getElementById('survey-avg-outdoor').textContent = '—';
     document.getElementById('indoor-result').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
     document.getElementById('outdoor-result').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
+    document.getElementById('outdoor-activity-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
+    document.getElementById('crowdfund-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
     document.getElementById('feedback-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回饋</div>';
-    document.getElementById('survey-tbody').innerHTML = '<tr class="empty-row"><td colspan="6">尚無資料</td></tr>';
+    document.getElementById('outdoor-activity-count').textContent = '';
+    document.getElementById('crowdfund-count').textContent = '';
+    document.getElementById('feedback-count').textContent = '';
+    document.getElementById('survey-count').textContent = '';
+    document.getElementById('survey-tbody').innerHTML = '<tr class="empty-row"><td colspan="8">尚無資料</td></tr>';
     return;
   }
 

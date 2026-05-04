@@ -973,12 +973,13 @@ async function loadSurvey() {
 
   // Helper to render text responses
   function renderTextList(containerId, countId, data, field, emptyMsg) {
-    const items = data.filter(r => r[field]);
-    document.getElementById(countId).textContent = '（' + items.length + ' 則）';
+    // 過濾掉 null、undefined、空字串、純空白/換行的內容
+    const items = data.filter(r => r[field] && String(r[field]).trim().length > 0);
+    document.getElementById(countId).textContent = items.length ? '（' + items.length + ' 則）' : '';
     document.getElementById(containerId).innerHTML = items.length
       ? items.map(r => '<div style="padding:10px 14px;background:#f9fafb;border-radius:8px;margin-bottom:8px;font-size:13px;border:1px solid #e5e7eb;">'
           + '<div style="color:#6b7280;font-size:11px;margin-bottom:4px;">' + new Date(r.submitted_at).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'}) + '</div>'
-          + r[field] + '</div>').join('')
+          + String(r[field]).trim() + '</div>').join('')
       : '<div style="color:var(--muted);font-size:13px;">' + emptyMsg + '</div>';
   }
 

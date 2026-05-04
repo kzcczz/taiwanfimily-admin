@@ -952,20 +952,18 @@ async function loadSurvey() {
     const el = document.getElementById(containerId);
     if(!ranks.length) { el.innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無資料</div>'; return; }
     const max = ranks[0][1];
-    const medals = ['🥇','🥈','🥉'];
-    const colors = ['#2563eb','#3b82f6','#60a5fa','#93c5fd','#bfdbfe'];
+    const min = ranks[ranks.length-1][1];
+    const colors = ['#7BA6DE','#8db4e4','#a0c2ea','#b3d0ef','#c6def5'];
     el.innerHTML = ranks.map(([name, score], i) => {
-      const pct = Math.round((score / max) * 100);
-      const color = colors[i] || '#bfdbfe';
-      return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">'
-        + '<div style="width:28px;text-align:center;font-size:18px;flex-shrink:0;">' + (medals[i] || (i+1)) + '</div>'
+      // 1st = 100%, last = 20%, others proportional between 20-100%
+      const pct = max === min ? 100 : Math.round(20 + ((score - min) / (max - min)) * 80);
+      const color = colors[i] || '#c6def5';
+      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+        + '<div style="width:20px;text-align:center;font-size:13px;font-weight:700;color:#6b7280;flex-shrink:0;">' + (i+1) + '</div>'
         + '<div style="flex:1;">'
-        + '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">'
-        + '<span style="font-size:14px;font-weight:600;color:#111827;">' + name + '</span>'
-        + '<span style="font-size:12px;color:#6b7280;">' + score + ' 分</span>'
-        + '</div>'
-        + '<div style="height:10px;background:#f3f4f6;border-radius:10px;overflow:hidden;">'
-        + '<div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:10px;transition:width 0.6s ease;"></div>'
+        + '<div style="margin-bottom:5px;font-size:13px;font-weight:600;color:#111827;">' + name + '</div>'
+        + '<div style="height:8px;background:#f3f4f6;border-radius:8px;overflow:hidden;">'
+        + '<div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:8px;transition:width 0.6s ease;"></div>'
         + '</div></div></div>';
     }).join('');
   }

@@ -1068,15 +1068,55 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 <script>
 // ============================================================
 // VENUE PLANNER - Supabase 雲端同步版本
+// 共用 admin 後台的 sessionStorage 登入機制
 // ============================================================
 
-// ⚠ 設定區 - 部署到 GitHub 前無需修改
-// SUPABASE_URL 跟 anon key 是公開的,放在前端是安全的
-// 真正的安全靠 RLS policy
+// ⚠ 設定區
 const SUPABASE_URL = 'https://gexcoudliocybhmlziss.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable__XRn__8TPSQdQYJxmCDl2g_JukRY7DE';
+const SUPABASE_ANON_KEY = 'PLEASE_REPLACE_WITH_YOUR_ANON_KEY';
 
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// ============== Auth 共用機制 ==============
+// 讀 admin 後台儲存的 token (key: 'tf_token', expiry: 'tf_expiry')
+function getAuthToken() {
+  const token = sessionStorage.getItem('tf_token');
+  const expiry = parseInt(sessionStorage.getItem('tf_expiry') || '0', 10);
+  if (!token || !expiry || Date.now() > expiry) {
+    return null;
+  }
+  return token;
+}
+
+const authToken = getAuthToken();
+if (!authToken) {
+  // 沒有有效 token,導回 admin
+  alert('請先登入後台才能使用場地規劃工具');
+  window.location.href = '/';
+  // 停止執行後續程式碼
+  throw new Error('No auth token');
+}
+
+// 建立 Supabase client,帶上 user 的 token (這樣 RLS 才會認得是已登入使用者)
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: {
+    headers: { Authorization: `Bearer ${authToken}` },
+  },
+  auth: {
+    persistSession: false,    // 不用 SDK 的 session 系統
+    autoRefreshToken: false,  // 不自動 refresh,過期靠 admin 重登
+  },
+});
+
+// 從 token 解出 email (JWT payload 裡有)
+function decodeJWT(token) {
+  try {
+    const payload = token.split('.')[1];
+    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(decoded);
+  } catch (e) { return null; }
+}
+
+const tokenPayload = decodeJWT(authToken);
+const userEmail = tokenPayload?.email || '已登入';
 
 // State
 const state = {
@@ -1110,7 +1150,7 @@ const state = {
   transformMode: null,
   transformStart: null,
   // Supabase / sync
-  user: null,                  // current logged-in user object
+  user: { email: userEmail },  // from decoded JWT
   pendingLayerSaves: new Set(),// layer ids waiting to be synced
   pendingMapSaves: new Set(),  // map ids waiting to be synced (for scale etc.)
   saveTimer: null,             // debounce timer
@@ -3504,7 +3544,7 @@ document.addEventListener('keyup', e => {
   }
 });
 
-// ============== Auth & Init ==============
+// ============== Init ==============
 async function showApp() {
   $('appRoot').style.display = 'grid';
   $('userEmail').textContent = state.user.email;
@@ -3537,18 +3577,8 @@ $('logoutBtn').addEventListener('click', async () => {
   window.location.href = '/';
 });
 
-// Check existing session on page load - no login screen, redirect if not logged in
-(async () => {
-  const { data: { session } } = await db.auth.getSession();
-  if (session && session.user) {
-    state.user = session.user;
-    await showApp();
-  } else {
-    // Not logged in - redirect back to admin login
-    alert('請先登入後台才能使用場地規劃工具');
-    window.location.href = '/';
-  }
-})();
+// Start the app immediately (auth was checked at script init above)
+showApp();
 
 window.addEventListener('resize', () => {
   if (getActiveMap()) applyTransform();

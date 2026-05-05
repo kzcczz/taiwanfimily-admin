@@ -1074,9 +1074,9 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 // SUPABASE_URL 跟 anon key 是公開的,放在前端是安全的
 // 真正的安全靠 RLS policy
 const SUPABASE_URL = 'https://gexcoudliocybhmlziss.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable__XRn__8TPSQdQYJxmCDl2g_JukRY7DE';
+const SUPABASE_ANON_KEY = 'PLEASE_REPLACE_WITH_YOUR_ANON_KEY';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // State
 const state = {
@@ -1324,12 +1324,12 @@ async function addMap(name, file) {
   try {
     const ext = (file.name.split('.').pop() || 'png').toLowerCase();
     const filename = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await db.storage
       .from('venue-images')
       .upload(filename, file, { cacheControl: '3600', upsert: false });
     if (uploadError) throw uploadError;
 
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = db.storage
       .from('venue-images')
       .getPublicUrl(filename);
     const publicUrl = urlData.publicUrl;
@@ -1405,14 +1405,14 @@ async function removeMap(id) {
   if (!confirm('確定要刪除這個場地嗎?所有標記會一併刪除,且無法復原。')) return;
   setSyncStatus('syncing', '刪除中...');
   try {
-    const { error } = await supabase.from('venue_maps').delete().eq('id', id);
+    const { error } = await db.from('venue_maps').delete().eq('id', id);
     if (error) throw error;
 
     const m = state.maps.find(x => x.id === id);
     if (m && m.image_url) {
       const filename = m.image_url.split('/').pop();
       if (filename) {
-        await supabase.storage.from('venue-images').remove([filename]);
+        await db.storage.from('venue-images').remove([filename]);
       }
     }
 
@@ -1497,7 +1497,7 @@ async function removeLayer(id) {
   if (!confirm('確定要刪除這個圖層嗎?圖層內所有標記都會被刪除。')) return;
   setSyncStatus('syncing', '刪除圖層...');
   try {
-    const { error } = await supabase.from('venue_layers').delete().eq('id', id);
+    const { error } = await db.from('venue_layers').delete().eq('id', id);
     if (error) throw error;
 
     m.layers = m.layers.filter(l => l.id !== id);
@@ -3539,7 +3539,7 @@ $('logoutBtn').addEventListener('click', async () => {
 
 // Check existing session on page load - no login screen, redirect if not logged in
 (async () => {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await db.auth.getSession();
   if (session && session.user) {
     state.user = session.user;
     await showApp();

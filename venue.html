@@ -1,0 +1,3634 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>場地規劃工具 / Venue Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-darkest: #0a0a0a;
+  --bg-dark: #141414;
+  --bg-mid: #1e1e1e;
+  --bg-light: #2a2a2a;
+  --bg-lighter: #383838;
+  --border: #2f2f2f;
+  --border-light: #404040;
+  --text: #e8e8e8;
+  --text-dim: #888;
+  --text-faint: #555;
+  --accent: #5B9BD5;
+  --accent-hover: #7AB0DD;
+  --accent-dim: rgba(91, 155, 213, 0.15);
+  --danger: #e85d4a;
+  --success: #5dc488;
+  --warning: #e8b94a;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Noto Sans TC', -apple-system, sans-serif;
+  background: var(--bg-darkest);
+  color: var(--text);
+  font-size: 13px;
+  user-select: none;
+}
+
+button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+/* ============ Layout ============ */
+.app {
+  display: grid;
+  grid-template-rows: 44px 1fr;
+  grid-template-columns: 64px 1fr 260px;
+  grid-template-areas:
+    "header header header"
+    "tools canvas layers";
+  height: 100vh;
+}
+
+/* ============ Header ============ */
+.header {
+  grid-area: header;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 16px;
+}
+
+.logo {
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logo::before {
+  content: '';
+  width: 8px; height: 8px;
+  background: var(--accent);
+  border-radius: 1px;
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.header-divider { width: 1px; height: 20px; background: var(--border); }
+
+.map-tabs {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.map-tabs::-webkit-scrollbar { display: none; }
+
+.map-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-mid);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: all 0.15s;
+  position: relative;
+  max-width: 200px;
+}
+.map-tab:hover { background: var(--bg-light); border-color: var(--border-light); }
+.map-tab.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.map-tab .tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 130px;
+}
+.map-tab .tab-close {
+  font-size: 14px;
+  opacity: 0.5;
+  width: 16px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 2px;
+}
+.map-tab .tab-close:hover { background: rgba(255,255,255,0.1); opacity: 1; }
+
+.btn {
+  padding: 6px 12px;
+  background: var(--bg-mid);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--bg-light); border-color: var(--border-light); }
+.btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn svg { width: 14px; height: 14px; }
+
+.header-actions { display: flex; gap: 6px; }
+
+/* ============ Tools sidebar ============ */
+.tools {
+  grid-area: tools;
+  background: var(--bg-dark);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 4px;
+}
+
+.tool-btn {
+  width: 40px; height: 40px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  transition: all 0.15s;
+  position: relative;
+}
+.tool-btn:hover { background: var(--bg-light); color: var(--text); }
+.tool-btn.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 0 0 1px var(--accent), 0 4px 12px rgba(91,155,213,0.3);
+}
+.tool-btn svg { width: 18px; height: 18px; }
+.tool-btn .tool-key {
+  position: absolute;
+  bottom: 2px; right: 3px;
+  font-size: 8px;
+  font-family: 'Space Mono', monospace;
+  opacity: 0.5;
+}
+
+.tool-divider {
+  width: 24px;
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.tool-tooltip {
+  position: absolute;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-darkest);
+  border: 1px solid var(--border-light);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 100;
+  transition: opacity 0.15s;
+}
+.tool-btn:hover .tool-tooltip { opacity: 1; }
+
+/* ============ Canvas area ============ */
+.canvas-area {
+  grid-area: canvas;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(91,155,213,0.04), transparent 50%),
+    var(--bg-darkest);
+}
+
+.canvas-container {
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+}
+
+.canvas-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  pointer-events: none;
+  z-index: 1;
+}
+.canvas-empty.hidden { display: none; }
+.canvas-empty .empty-icon {
+  width: 64px; height: 64px;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+.canvas-empty h2 {
+  font-family: 'Space Mono', monospace;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.canvas-empty p { font-size: 12px; opacity: 0.7; }
+.canvas-empty .upload-cta {
+  margin-top: 16px;
+  pointer-events: auto;
+  padding: 8px 20px;
+  background: var(--accent);
+  color: white;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.canvas-empty .upload-cta:hover { background: var(--accent-hover); }
+
+#canvas-bg, #canvas-draw {
+  position: absolute;
+  top: 0; left: 0;
+  transform-origin: 0 0;
+}
+#canvas-bg { z-index: 1; }
+#canvas-draw { z-index: 2; cursor: crosshair; }
+
+.canvas-controls {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+.zoom-btn {
+  width: 28px; height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  transition: all 0.15s;
+}
+.zoom-btn:hover { background: var(--bg-light); color: var(--text); }
+.zoom-display {
+  min-width: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ============ Properties bar (top of canvas) ============ */
+.props-bar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  z-index: 10;
+  align-items: center;
+  font-size: 11px;
+}
+.props-bar .label {
+  color: var(--text-faint);
+  font-family: 'Space Mono', monospace;
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+.color-swatches { display: flex; gap: 4px; }
+.color-swatch {
+  width: 20px; height: 20px;
+  border-radius: 3px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+  position: relative;
+}
+.color-swatch.active {
+  border-color: var(--text);
+  transform: scale(1.1);
+}
+.color-swatch.custom {
+  background: conic-gradient(from 0deg, #f43f5e, #f59e0b, #84cc16, #06b6d4, #8b5cf6, #f43f5e);
+  position: relative;
+}
+.color-swatch.custom::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: var(--bg-mid);
+  border-radius: 1px;
+}
+
+.size-controls { display: flex; gap: 4px; align-items: center; }
+.size-btn {
+  width: 24px; height: 24px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  transition: all 0.15s;
+}
+.size-btn:hover { background: var(--bg-light); }
+.size-btn.active { background: var(--accent-dim); border-color: var(--accent); }
+.size-btn .dot {
+  background: var(--text);
+  border-radius: 50%;
+}
+.size-btn .dot.s1 { width: 3px; height: 3px; }
+.size-btn .dot.s2 { width: 6px; height: 6px; }
+.size-btn .dot.s3 { width: 10px; height: 10px; }
+.size-btn .dot.s4 { width: 14px; height: 14px; }
+
+.divider-v { width: 1px; height: 20px; background: var(--border); }
+
+/* ============ Layers panel ============ */
+.layers {
+  grid-area: layers;
+  background: var(--bg-dark);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.panel-header h3 {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.icon-btn {
+  width: 24px; height: 24px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  transition: all 0.15s;
+}
+.icon-btn:hover { background: var(--bg-light); color: var(--text); }
+
+.layers-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+.layers-list::-webkit-scrollbar { width: 8px; }
+.layers-list::-webkit-scrollbar-track { background: transparent; }
+.layers-list::-webkit-scrollbar-thumb { background: var(--bg-light); border-radius: 4px; }
+
+.layer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.layer-item:hover { background: var(--bg-mid); }
+.layer-item.active { background: var(--accent-dim); border-color: var(--accent); }
+.layer-item.dragging { opacity: 0.5; }
+
+.layer-visibility {
+  width: 18px; height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+.layer-visibility:hover { color: var(--text); }
+.layer-visibility.hidden { opacity: 0.3; }
+
+.layer-color {
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.layer-name {
+  flex: 1;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  outline: none;
+}
+.layer-name:focus { background: var(--bg-darkest); padding: 2px 4px; border-radius: 2px; }
+
+.layer-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
+.layer-item:hover .layer-actions { opacity: 1; }
+
+.layer-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.panel-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-faint);
+  font-family: 'Space Mono', monospace;
+  display: flex;
+  justify-content: space-between;
+}
+.status-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  margin-right: 6px;
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ============ Modals ============ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.active { display: flex; }
+
+.modal {
+  background: var(--bg-mid);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 24px;
+  min-width: 400px;
+  max-width: 500px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal h2 {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  color: var(--accent);
+}
+.modal-form { display: flex; flex-direction: column; gap: 12px; }
+.modal label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.modal input[type="text"], .modal input[type="file"] {
+  background: var(--bg-darkest);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.modal input:focus { border-color: var(--accent); }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ============ Custom color picker ============ */
+.color-picker-popup {
+  position: absolute;
+  background: var(--bg-mid);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 12px;
+  z-index: 100;
+  display: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.color-picker-popup.active { display: block; }
+.color-picker-popup input[type="color"] {
+  width: 80px; height: 40px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* ============ Toast ============ */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg-mid);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--accent);
+  padding: 12px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  z-index: 2000;
+  transform: translateY(120%);
+  transition: transform 0.3s;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  max-width: 320px;
+}
+.toast.show { transform: translateY(0); }
+.toast.success { border-left-color: var(--success); }
+.toast.error { border-left-color: var(--danger); }
+
+/* ============ Hidden file input ============ */
+.hidden-input { display: none; }
+
+/* ============ Sync status & user info in header ============ */
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-mid);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  white-space: nowrap;
+}
+.sync-status .sync-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-faint);
+  flex-shrink: 0;
+}
+.sync-status.synced .sync-dot { background: var(--success); animation: pulse 2s infinite; }
+.sync-status.syncing .sync-dot { background: var(--warning); animation: pulse 1s infinite; }
+.sync-status.error .sync-dot { background: var(--danger); }
+.sync-status.offline .sync-dot { background: var(--text-faint); }
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+}
+.user-info .logout-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 10px;
+  font-family: inherit;
+}
+.user-info .logout-btn:hover { background: var(--bg-light); color: var(--text); border-color: var(--border-light); }
+
+/* ============ Login screen ============ */
+.login-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-darkest);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  flex-direction: column;
+  gap: 24px;
+}
+.login-screen .logo-big {
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 2px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.login-screen .logo-big::before {
+  content: '';
+  width: 12px; height: 12px;
+  background: var(--accent);
+  border-radius: 1px;
+  box-shadow: 0 0 12px var(--accent);
+}
+.login-screen .login-card {
+  background: var(--bg-mid);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 32px;
+  min-width: 360px;
+  max-width: 400px;
+}
+.login-screen h2 {
+  font-family: 'Space Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.login-screen .login-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+.login-screen .login-form {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.login-screen label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.login-screen input {
+  background: var(--bg-darkest);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.login-screen input:focus { border-color: var(--accent); }
+.login-screen .login-btn {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background 0.15s;
+}
+.login-screen .login-btn:hover { background: var(--accent-hover); }
+.login-screen .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.login-screen .login-error {
+  background: rgba(232, 93, 74, 0.1);
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+  padding: 8px 10px;
+  color: var(--danger);
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* ============ Scale indicator ============ */
+.scale-indicator {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  z-index: 10;
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+  color: var(--text-dim);
+  backdrop-filter: blur(8px);
+}
+.scale-indicator.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.scale-set-btn {
+  padding: 2px 8px;
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text);
+  font-size: 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.scale-set-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
+
+/* ============ Live measurement tooltip ============ */
+.measure-tooltip {
+  position: fixed;
+  background: var(--accent);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 200;
+  display: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.measure-tooltip.show { display: block; }
+
+/* Calibrate mode special cursor */
+.canvas-container.calibrating { cursor: crosshair !important; }
+
+/* ============ Responsive ============ */
+@media (max-width: 900px) {
+  .app {
+    grid-template-columns: 56px 1fr;
+    grid-template-areas:
+      "header header"
+      "tools canvas";
+  }
+  .layers { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Login screen -->
+<div class="login-screen" id="loginScreen">
+  <div class="logo-big">VENUE.PLAN</div>
+  <div class="login-card">
+    <h2>登入</h2>
+    <div class="login-hint">使用 Taiwan Fimily 後台帳號登入即可進入場地規劃工具</div>
+    <div class="login-form">
+      <label>EMAIL</label>
+      <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email">
+      <label>密碼</label>
+      <input type="password" id="loginPassword" autocomplete="current-password">
+      <button class="login-btn" id="loginBtn">登入</button>
+      <div class="login-error" id="loginError" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="appRoot" style="display:none;">
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">VENUE.PLAN</div>
+    <div class="header-divider"></div>
+    <div class="map-tabs" id="mapTabs"></div>
+    <div class="header-actions">
+      <div class="sync-status" id="syncStatus">
+        <span class="sync-dot"></span>
+        <span id="syncText">載入中...</span>
+      </div>
+      <button class="btn" id="newMapBtn" title="新增場地圖">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        <span>新場地</span>
+      </button>
+      <button class="btn" id="exportBtn" title="匯出">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <span>匯出</span>
+      </button>
+      <div class="user-info">
+        <span id="userEmail">--</span>
+        <button class="logout-btn" id="logoutBtn">登出</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tools sidebar -->
+  <aside class="tools">
+    <button class="tool-btn active" data-tool="select" title="選取">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
+      <span class="tool-key">V</span>
+      <span class="tool-tooltip">選取 / 移動 (V)</span>
+    </button>
+    <button class="tool-btn" data-tool="pen" title="畫筆">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+      <span class="tool-key">P</span>
+      <span class="tool-tooltip">畫筆 (P)</span>
+    </button>
+    <button class="tool-btn" data-tool="line" title="直線">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/></svg>
+      <span class="tool-key">L</span>
+      <span class="tool-tooltip">直線 (L)</span>
+    </button>
+    <button class="tool-btn" data-tool="arrow" title="箭頭">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="13 5 20 12 13 19"/></svg>
+      <span class="tool-key">A</span>
+      <span class="tool-tooltip">箭頭 (A)</span>
+    </button>
+    <button class="tool-btn" data-tool="rect" title="矩形">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="16" height="12" rx="1"/></svg>
+      <span class="tool-key">R</span>
+      <span class="tool-tooltip">矩形 (R)</span>
+    </button>
+    <button class="tool-btn" data-tool="circle" title="圓形">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>
+      <span class="tool-key">C</span>
+      <span class="tool-tooltip">圓形 (C)</span>
+    </button>
+    <button class="tool-btn" data-tool="text" title="文字">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+      <span class="tool-key">T</span>
+      <span class="tool-tooltip">文字 (T)</span>
+    </button>
+    <div class="tool-divider"></div>
+    <button class="tool-btn" data-tool="calibrate" title="設定比例尺" id="calibrateBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.3 15.3l-3.6-3.6m0 0L14.1 8.1m3.6 3.6L14.1 15.3m3.6-3.6L21.3 8.1M3 3l4 4M3 8l4 4M3 13l4 4M3 18l4 4"/><path d="M2 21h20"/></svg>
+      <span class="tool-key">M</span>
+      <span class="tool-tooltip">設定比例尺 (M)</span>
+    </button>
+    <button class="tool-btn" data-tool="eraser" title="橡皮擦">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16c-1-1-1-3 0-4l9-9c1-1 3-1 4 0l5 5c1 1 1 3 0 4l-7 7"/><line x1="18" y1="13" x2="9" y2="4"/></svg>
+      <span class="tool-key">E</span>
+      <span class="tool-tooltip">橡皮擦 (E)</span>
+    </button>
+    <button class="tool-btn" data-tool="hand" title="平移畫面">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+      <span class="tool-key">H</span>
+      <span class="tool-tooltip">平移 (H 或空白鍵)</span>
+    </button>
+    <div style="flex:1"></div>
+    <button class="tool-btn" id="undoBtn" title="復原">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+      <span class="tool-tooltip">復原 (Ctrl+Z)</span>
+    </button>
+    <button class="tool-btn" id="redoBtn" title="重做">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>
+      <span class="tool-tooltip">重做 (Ctrl+Y)</span>
+    </button>
+  </aside>
+
+  <!-- Canvas -->
+  <main class="canvas-area">
+    <div class="canvas-empty" id="canvasEmpty">
+      <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      <h2>還沒有場地圖</h2>
+      <p>上傳平面圖或 3D 圖開始規劃</p>
+      <button class="upload-cta" id="emptyUploadBtn">+ 上傳第一張圖</button>
+    </div>
+
+    <div class="canvas-container" id="canvasContainer">
+      <canvas id="canvas-bg"></canvas>
+      <canvas id="canvas-draw"></canvas>
+    </div>
+
+    <!-- Properties bar -->
+    <div class="props-bar" id="propsBar" style="display:none;">
+      <span class="label">色彩</span>
+      <div class="color-swatches" id="colorSwatches">
+        <div class="color-swatch active" data-color="#5B9BD5" style="background:#5B9BD5"></div>
+        <div class="color-swatch" data-color="#e85d4a" style="background:#e85d4a"></div>
+        <div class="color-swatch" data-color="#5dc488" style="background:#5dc488"></div>
+        <div class="color-swatch" data-color="#e8b94a" style="background:#e8b94a"></div>
+        <div class="color-swatch" data-color="#b975e0" style="background:#b975e0"></div>
+        <div class="color-swatch" data-color="#ffffff" style="background:#ffffff"></div>
+        <div class="color-swatch" data-color="#000000" style="background:#000000"></div>
+        <div class="color-swatch custom" id="customColor" title="自訂顏色"></div>
+      </div>
+      <div class="divider-v"></div>
+      <span class="label">粗細</span>
+      <div class="size-controls" id="sizeControls">
+        <button class="size-btn" data-size="2"><span class="dot s1"></span></button>
+        <button class="size-btn active" data-size="4"><span class="dot s2"></span></button>
+        <button class="size-btn" data-size="8"><span class="dot s3"></span></button>
+        <button class="size-btn" data-size="14"><span class="dot s4"></span></button>
+      </div>
+      <div class="divider-v"></div>
+      <span class="label">透明</span>
+      <input type="range" id="opacityRange" min="20" max="100" value="100" style="width:60px;">
+    </div>
+
+    <div class="color-picker-popup" id="colorPickerPopup">
+      <input type="color" id="customColorInput" value="#5B9BD5">
+    </div>
+
+    <!-- Canvas controls -->
+    <div class="canvas-controls">
+      <button class="zoom-btn" id="zoomOut" title="縮小">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <div class="zoom-display" id="zoomDisplay">100%</div>
+      <button class="zoom-btn" id="zoomIn" title="放大">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="zoom-btn" id="zoomFit" title="符合視窗">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4"/></svg>
+      </button>
+    </div>
+
+    <!-- Scale indicator (bottom-left) -->
+    <div class="scale-indicator" id="scaleIndicator">
+      <span id="scaleText">未設定比例尺</span>
+      <button id="scaleSetBtn" class="scale-set-btn">設定</button>
+    </div>
+
+    <!-- Live measurement display (follows cursor) -->
+    <div class="measure-tooltip" id="measureTooltip"></div>
+  </main>
+
+  <!-- Layers panel -->
+  <aside class="layers">
+    <div class="panel-header">
+      <h3>圖層 / Layers</h3>
+      <button class="icon-btn" id="addLayerBtn" title="新增圖層">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+    <div class="layers-list" id="layersList"></div>
+    <div class="panel-footer">
+      <span><span class="status-dot"></span>Supabase 已連線</span>
+      <span id="lastSaved">--:--</span>
+    </div>
+  </aside>
+</div>
+
+<!-- Scale calibration modal -->
+<div class="modal-overlay" id="scaleModal">
+  <div class="modal">
+    <h2>設定比例尺</h2>
+    <div class="modal-form">
+      <p style="font-size:12px; color:var(--text-dim); line-height:1.6;">
+        請先在圖上拉一條已知長度的參考線（例如 4 號軸到 5 號軸），然後在這裡輸入它的實際長度。<br>
+        設定後，畫任何線、矩形、圓形時都會即時顯示實際公分數。
+      </p>
+      <label>步驟 1：點下方按鈕，然後在圖上拉一條參考線</label>
+      <button class="btn primary" id="scaleStartBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/></svg>
+        在圖上拉參考線
+      </button>
+      <div id="scaleStep2" style="display:none;">
+        <label style="margin-top:8px; display:block;">步驟 2：這條線的實際長度（公分）</label>
+        <input type="number" id="scaleRealValue" placeholder="例如 540" min="0.1" step="0.1" style="width:100%;">
+        <div style="font-size:11px; color:var(--text-dim); margin-top:4px;" id="scalePixelInfo"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="scaleCancelBtn">取消</button>
+      <button class="btn primary" id="scaleConfirmBtn" disabled>確認設定</button>
+    </div>
+  </div>
+</div>
+
+<!-- New map modal -->
+<div class="modal-overlay" id="newMapModal">
+  <div class="modal">
+    <h2>新增場地圖</h2>
+    <div class="modal-form">
+      <label>場地名稱（例：1F 大廳、2F 表演區）</label>
+      <input type="text" id="newMapName" placeholder="輸入名稱..." autocomplete="off">
+      <label>上傳平面圖或 3D 圖</label>
+      <input type="file" id="newMapFile" accept="image/*">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelNewMap">取消</button>
+      <button class="btn primary" id="confirmNewMap">建立</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export modal -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
+    <h2>匯出</h2>
+    <div class="modal-form">
+      <label>匯出格式</label>
+      <div style="display:flex; gap:8px;">
+        <button class="btn primary" id="exportPNG" style="flex:1;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          PNG 圖片
+        </button>
+        <button class="btn" id="exportJSON" style="flex:1;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          JSON 資料
+        </button>
+      </div>
+      <label style="margin-top:8px;">匯入 JSON</label>
+      <input type="file" id="importJSON" accept=".json">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="closeExportModal">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="hiddenImageUpload" class="hidden-input" accept="image/*">
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// VENUE PLANNER - Supabase 雲端同步版本
+// ============================================================
+
+// ⚠ 設定區 - 部署到 GitHub 前無需修改
+// SUPABASE_URL 跟 anon key 是公開的,放在前端是安全的
+// 真正的安全靠 RLS policy
+const SUPABASE_URL = 'https://gexcoudliocybhmlziss.supabase.co';
+const SUPABASE_ANON_KEY = 'PLEASE_REPLACE_WITH_YOUR_ANON_KEY';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// State
+const state = {
+  maps: [],            // [{id, name, image_url, width, height, scale, layers, activeLayerId, sort_order}]
+  activeMapId: null,
+  tool: 'select',
+  color: '#5B9BD5',
+  size: 4,
+  opacity: 1,
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+  isDrawing: false,
+  isPanning: false,
+  isSpacePressed: false,
+  currentStroke: null,
+  history: {},         // {mapId: [snapshots]}
+  historyIndex: {},    // {mapId: index}
+  textInput: null,
+  selectedStrokeIds: [],  // ids of selected strokes
+  isDragging: false,       // dragging selected items
+  dragStart: null,         // {x, y} canvas point where drag started
+  // Calibration mode
+  calibrating: false,
+  calibrateStart: null,
+  calibratePixels: null,
+  // Clipboard
+  clipboard: null,
+  lastMousePos: null,
+  // Transform mode (resize/rotate)
+  transformMode: null,
+  transformStart: null,
+  // Supabase / sync
+  user: null,                  // current logged-in user object
+  pendingLayerSaves: new Set(),// layer ids waiting to be synced
+  pendingMapSaves: new Set(),  // map ids waiting to be synced (for scale etc.)
+  saveTimer: null,             // debounce timer
+  isSyncing: false,
+};
+
+// DOM
+const $ = (id) => document.getElementById(id);
+const canvasBg = $('canvas-bg');
+const canvasDraw = $('canvas-draw');
+const ctxBg = canvasBg.getContext('2d');
+const ctxDraw = canvasDraw.getContext('2d');
+const canvasContainer = $('canvasContainer');
+const canvasArea = document.querySelector('.canvas-area');
+
+// ============== Helpers ==============
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function now() { return new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'}); }
+
+function showToast(msg, type='') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function getActiveMap() { return state.maps.find(m => m.id === state.activeMapId); }
+function getActiveLayer() {
+  const m = getActiveMap();
+  if (!m) return null;
+  return m.layers.find(l => l.id === m.activeLayerId);
+}
+
+// ============== Sync status indicator ==============
+function setSyncStatus(status, text) {
+  const el = $('syncStatus');
+  el.className = 'sync-status ' + status;
+  $('syncText').textContent = text;
+}
+
+// ============== Persistence (Supabase) ==============
+// save() now schedules a debounced sync to Supabase
+function save() {
+  // Mark all current maps and active layer as pending save
+  const m = getActiveMap();
+  if (m) {
+    state.pendingMapSaves.add(m.id);
+    m.layers.forEach(l => state.pendingLayerSaves.add(l.id));
+  }
+  scheduleSync();
+}
+
+function scheduleSync() {
+  clearTimeout(state.saveTimer);
+  setSyncStatus('syncing', '即將同步...');
+  state.saveTimer = setTimeout(syncToSupabase, 1500);
+}
+
+async function syncToSupabase() {
+  if (state.isSyncing) {
+    // Already syncing, reschedule
+    scheduleSync();
+    return;
+  }
+  if (state.pendingMapSaves.size === 0 && state.pendingLayerSaves.size === 0) {
+    setSyncStatus('synced', '已同步 ' + now());
+    return;
+  }
+  state.isSyncing = true;
+  setSyncStatus('syncing', '同步中...');
+
+  const mapIds = Array.from(state.pendingMapSaves);
+  const layerIds = Array.from(state.pendingLayerSaves);
+  state.pendingMapSaves.clear();
+  state.pendingLayerSaves.clear();
+
+  try {
+    // Save maps (only fields that change without re-uploading image)
+    for (const id of mapIds) {
+      const m = state.maps.find(x => x.id === id);
+      if (!m) continue;
+      const { error } = await supabase
+        .from('venue_maps')
+        .update({
+          name: m.name,
+          scale_pixels_per_cm: m.scale ? m.scale.pixelsPerCm : null,
+          sort_order: m.sort_order || 0,
+          updated_by: state.user?.email || null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+    }
+
+    // Save layers
+    for (const id of layerIds) {
+      let layer = null;
+      let mapId = null;
+      for (const m of state.maps) {
+        const l = m.layers.find(x => x.id === id);
+        if (l) { layer = l; mapId = m.id; break; }
+      }
+      if (!layer) continue;
+      const { error } = await supabase
+        .from('venue_layers')
+        .update({
+          name: layer.name,
+          color: layer.color,
+          visible: layer.visible,
+          sort_order: layer.sort_order || 0,
+          strokes: layer.strokes,
+          updated_by: state.user?.email || null,
+        })
+        .eq('id', id);
+      if (error) throw error;
+    }
+
+    setSyncStatus('synced', '已同步 ' + now());
+    $('lastSaved').textContent = now();
+  } catch (err) {
+    console.error('Sync error:', err);
+    setSyncStatus('error', '同步失敗,將重試');
+    // Re-add to pending so next save retries
+    mapIds.forEach(id => state.pendingMapSaves.add(id));
+    layerIds.forEach(id => state.pendingLayerSaves.add(id));
+    setTimeout(scheduleSync, 5000);
+  } finally {
+    state.isSyncing = false;
+  }
+}
+
+// Load all maps & layers from Supabase
+async function load() {
+  try {
+    setSyncStatus('syncing', '載入中...');
+    const { data: maps, error: mapsError } = await supabase
+      .from('venue_maps')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    if (mapsError) throw mapsError;
+
+    const { data: layers, error: layersError } = await supabase
+      .from('venue_layers')
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    if (layersError) throw layersError;
+
+    // Stitch layers into maps
+    state.maps = (maps || []).map(m => {
+      const myLayers = (layers || []).filter(l => l.map_id === m.id);
+      // Ensure at least one layer
+      if (myLayers.length === 0) {
+        // Will be created on first edit
+      }
+      return {
+        id: m.id,
+        name: m.name,
+        imageData: m.image_url,    // for compatibility with drawing code
+        image_url: m.image_url,
+        width: m.width,
+        height: m.height,
+        scale: m.scale_pixels_per_cm ? { pixelsPerCm: m.scale_pixels_per_cm } : null,
+        sort_order: m.sort_order || 0,
+        layers: myLayers.map(l => ({
+          id: l.id,
+          map_id: l.map_id,
+          name: l.name,
+          color: l.color || '#5B9BD5',
+          visible: l.visible !== false,
+          sort_order: l.sort_order || 0,
+          strokes: l.strokes || [],
+        })),
+        activeLayerId: myLayers[0]?.id || null,
+      };
+    });
+
+    if (state.maps.length > 0) {
+      state.activeMapId = state.maps[0].id;
+      // Build initial history per map
+      state.maps.forEach(m => {
+        state.history[m.id] = [JSON.stringify(m.layers)];
+        state.historyIndex[m.id] = 0;
+      });
+    }
+    setSyncStatus('synced', '已同步 ' + now());
+  } catch (err) {
+    console.error('Load error:', err);
+    setSyncStatus('error', '載入失敗');
+    showToast('載入失敗:' + (err.message || err), 'error');
+  }
+}
+
+// ============== Map management (Supabase) ==============
+async function addMap(name, file) {
+  const imageUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = reject;
+    i.src = imageUrl;
+  });
+
+  setSyncStatus('syncing', '上傳場地圖...');
+
+  try {
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('venue-images')
+      .upload(filename, file, { cacheControl: '3600', upsert: false });
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage
+      .from('venue-images')
+      .getPublicUrl(filename);
+    const publicUrl = urlData.publicUrl;
+
+    const { data: mapRow, error: mapError } = await supabase
+      .from('venue_maps')
+      .insert({
+        name: name || `場地 ${state.maps.length + 1}`,
+        image_url: publicUrl,
+        width: img.width,
+        height: img.height,
+        sort_order: state.maps.length,
+        updated_by: state.user?.email || null,
+      })
+      .select()
+      .single();
+    if (mapError) throw mapError;
+
+    const { data: layerRow, error: layerError } = await supabase
+      .from('venue_layers')
+      .insert({
+        map_id: mapRow.id,
+        name: '圖層 1',
+        color: '#5B9BD5',
+        visible: true,
+        sort_order: 0,
+        strokes: [],
+        updated_by: state.user?.email || null,
+      })
+      .select()
+      .single();
+    if (layerError) throw layerError;
+
+    const map = {
+      id: mapRow.id,
+      name: mapRow.name,
+      imageData: publicUrl,
+      image_url: publicUrl,
+      width: mapRow.width,
+      height: mapRow.height,
+      scale: null,
+      sort_order: mapRow.sort_order,
+      layers: [{
+        id: layerRow.id,
+        map_id: mapRow.id,
+        name: layerRow.name,
+        color: layerRow.color,
+        visible: true,
+        sort_order: 0,
+        strokes: [],
+      }],
+      activeLayerId: layerRow.id,
+    };
+    state.maps.push(map);
+    state.activeMapId = map.id;
+    state.history[map.id] = [JSON.stringify(map.layers)];
+    state.historyIndex[map.id] = 0;
+
+    renderTabs();
+    renderLayers();
+    renderCanvas();
+    fitToWindow();
+    setSyncStatus('synced', '已同步 ' + now());
+    showToast('場地已新增', 'success');
+  } catch (err) {
+    console.error('addMap error:', err);
+    setSyncStatus('error', '上傳失敗');
+    showToast('新增失敗:' + (err.message || err), 'error');
+  }
+}
+
+async function removeMap(id) {
+  if (!confirm('確定要刪除這個場地嗎?所有標記會一併刪除,且無法復原。')) return;
+  setSyncStatus('syncing', '刪除中...');
+  try {
+    const { error } = await supabase.from('venue_maps').delete().eq('id', id);
+    if (error) throw error;
+
+    const m = state.maps.find(x => x.id === id);
+    if (m && m.image_url) {
+      const filename = m.image_url.split('/').pop();
+      if (filename) {
+        await supabase.storage.from('venue-images').remove([filename]);
+      }
+    }
+
+    state.maps = state.maps.filter(m => m.id !== id);
+    delete state.history[id];
+    delete state.historyIndex[id];
+    if (state.activeMapId === id) {
+      state.activeMapId = state.maps[0]?.id || null;
+    }
+    renderTabs();
+    renderLayers();
+    renderCanvas();
+    setSyncStatus('synced', '已同步 ' + now());
+    showToast('場地已刪除');
+  } catch (err) {
+    console.error('removeMap error:', err);
+    setSyncStatus('error', '刪除失敗');
+    showToast('刪除失敗:' + (err.message || err), 'error');
+  }
+}
+
+function switchMap(id) {
+  state.activeMapId = id;
+  state.selectedStrokeIds = [];
+  state.transformMode = null;
+  state.transformStart = null;
+  renderTabs();
+  renderLayers();
+  renderCanvas();
+  fitToWindow();
+}
+
+// ============== Layer management (Supabase) ==============
+async function addLayer() {
+  const m = getActiveMap();
+  if (!m) return;
+  setSyncStatus('syncing', '新增圖層...');
+  try {
+    const { data: layerRow, error } = await supabase
+      .from('venue_layers')
+      .insert({
+        map_id: m.id,
+        name: `圖層 ${m.layers.length + 1}`,
+        color: state.color,
+        visible: true,
+        sort_order: m.layers.length,
+        strokes: [],
+        updated_by: state.user?.email || null,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+
+    const layer = {
+      id: layerRow.id,
+      map_id: m.id,
+      name: layerRow.name,
+      color: layerRow.color,
+      visible: true,
+      sort_order: layerRow.sort_order,
+      strokes: [],
+    };
+    m.layers.push(layer);
+    m.activeLayerId = layer.id;
+    pushHistory();
+    renderLayers();
+    renderCanvas();
+    setSyncStatus('synced', '已同步 ' + now());
+  } catch (err) {
+    console.error('addLayer error:', err);
+    setSyncStatus('error', '新增失敗');
+    showToast('新增圖層失敗', 'error');
+  }
+}
+
+async function removeLayer(id) {
+  const m = getActiveMap();
+  if (!m || m.layers.length <= 1) {
+    showToast('至少要保留一個圖層', 'error');
+    return;
+  }
+  if (!confirm('確定要刪除這個圖層嗎?圖層內所有標記都會被刪除。')) return;
+  setSyncStatus('syncing', '刪除圖層...');
+  try {
+    const { error } = await supabase.from('venue_layers').delete().eq('id', id);
+    if (error) throw error;
+
+    m.layers = m.layers.filter(l => l.id !== id);
+    if (m.activeLayerId === id) m.activeLayerId = m.layers[0].id;
+    // Remove from pending saves if present
+    state.pendingLayerSaves.delete(id);
+    pushHistory();
+    renderLayers();
+    renderCanvas();
+    setSyncStatus('synced', '已同步 ' + now());
+  } catch (err) {
+    console.error('removeLayer error:', err);
+    setSyncStatus('error', '刪除失敗');
+    showToast('刪除圖層失敗', 'error');
+  }
+}
+
+function toggleLayerVisibility(id) {
+  const m = getActiveMap();
+  const layer = m.layers.find(l => l.id === id);
+  layer.visible = !layer.visible;
+  renderLayers();
+  renderCanvas();
+  save();
+}
+
+function setActiveLayer(id) {
+  const m = getActiveMap();
+  m.activeLayerId = id;
+  renderLayers();
+}
+
+function renameLayer(id, newName) {
+  const m = getActiveMap();
+  const layer = m.layers.find(l => l.id === id);
+  layer.name = newName.trim() || layer.name;
+  save();
+}
+
+// ============== History ==============
+function pushHistory() {
+  const m = getActiveMap();
+  if (!m) return;
+  if (!state.history[m.id]) state.history[m.id] = [];
+  // Snapshot only layers
+  const snap = JSON.stringify(m.layers);
+  const arr = state.history[m.id];
+  const idx = state.historyIndex[m.id] || 0;
+  // Truncate forward history
+  arr.length = idx + 1;
+  arr.push(snap);
+  if (arr.length > 50) arr.shift();
+  state.historyIndex[m.id] = arr.length - 1;
+}
+
+function undo() {
+  const m = getActiveMap();
+  if (!m) return;
+  const arr = state.history[m.id];
+  if (!arr || state.historyIndex[m.id] <= 0) return;
+  state.historyIndex[m.id]--;
+  m.layers = JSON.parse(arr[state.historyIndex[m.id]]);
+  if (!m.layers.find(l => l.id === m.activeLayerId)) {
+    m.activeLayerId = m.layers[0]?.id;
+  }
+  renderLayers();
+  renderCanvas();
+  save();
+}
+
+function redo() {
+  const m = getActiveMap();
+  if (!m) return;
+  const arr = state.history[m.id];
+  if (!arr || state.historyIndex[m.id] >= arr.length - 1) return;
+  state.historyIndex[m.id]++;
+  m.layers = JSON.parse(arr[state.historyIndex[m.id]]);
+  if (!m.layers.find(l => l.id === m.activeLayerId)) {
+    m.activeLayerId = m.layers[0]?.id;
+  }
+  renderLayers();
+  renderCanvas();
+  save();
+}
+
+// ============== Canvas rendering ==============
+function renderCanvas() {
+  const m = getActiveMap();
+  $('canvasEmpty').classList.toggle('hidden', !!m);
+  $('propsBar').style.display = m ? 'flex' : 'none';
+  updateScaleIndicator();
+
+  if (!m) {
+    canvasBg.width = canvasDraw.width = 0;
+    return;
+  }
+
+  // Set canvas dimensions
+  canvasBg.width = canvasDraw.width = m.width;
+  canvasBg.height = canvasDraw.height = m.height;
+
+  // Background image
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    ctxBg.clearRect(0, 0, m.width, m.height);
+    ctxBg.drawImage(img, 0, 0);
+  };
+  img.src = m.imageData;
+
+  // Draw all visible layers
+  redrawLayers();
+  applyTransform();
+}
+
+function redrawLayers() {
+  const m = getActiveMap();
+  if (!m) return;
+  ctxDraw.clearRect(0, 0, canvasDraw.width, canvasDraw.height);
+  m.layers.forEach(layer => {
+    if (!layer.visible) return;
+    layer.strokes.forEach(stroke => drawStroke(ctxDraw, stroke));
+  });
+  // Draw selection highlights on top
+  if (state.selectedStrokeIds.length > 0) {
+    m.layers.forEach(layer => {
+      if (!layer.visible) return;
+      layer.strokes.forEach(s => {
+        if (state.selectedStrokeIds.includes(s.id)) {
+          drawSelectionBox(ctxDraw, s);
+        }
+      });
+    });
+  }
+}
+
+function drawSelectionBox(ctx, s) {
+  const b = getStrokeBounds(s);
+  if (!b) return;
+  const pad = 6;
+  const cx = b.x + b.w/2;
+  const cy = b.y + b.h/2;
+  const rotation = s.rotation || 0;
+
+  ctx.save();
+
+  // Apply rotation around center for the selection box
+  if (rotation !== 0) {
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation);
+    ctx.translate(-cx, -cy);
+  }
+
+  // Dashed bounding box
+  ctx.strokeStyle = '#5B9BD5';
+  ctx.lineWidth = 1.5 / state.zoom;
+  ctx.setLineDash([6 / state.zoom, 4 / state.zoom]);
+  ctx.strokeRect(b.x - pad, b.y - pad, b.w + pad*2, b.h + pad*2);
+
+  // Only show handles if exactly one item selected (multi-select shows just the box)
+  if (state.selectedStrokeIds.length === 1) {
+    ctx.setLineDash([]);
+    const handleSize = 8 / state.zoom;
+    const half = handleSize / 2;
+
+    const handles = getHandlePositions(b, pad);
+
+    // Resize handles - 8 squares
+    Object.entries(handles).forEach(([key, pos]) => {
+      if (key === 'rotate') return;
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#5B9BD5';
+      ctx.lineWidth = 1.5 / state.zoom;
+      ctx.fillRect(pos.x - half, pos.y - half, handleSize, handleSize);
+      ctx.strokeRect(pos.x - half, pos.y - half, handleSize, handleSize);
+    });
+
+    // Rotate handle - circle above top
+    const r = handles.rotate;
+    ctx.beginPath();
+    ctx.moveTo(handles.n.x, handles.n.y);
+    ctx.lineTo(r.x, r.y);
+    ctx.strokeStyle = '#5B9BD5';
+    ctx.lineWidth = 1.5 / state.zoom;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, handleSize * 0.7, 0, Math.PI * 2);
+    ctx.fillStyle = '#5B9BD5';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5 / state.zoom;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// Get handle positions in unrotated coordinates (relative to bounds)
+function getHandlePositions(b, pad) {
+  const x1 = b.x - pad;
+  const y1 = b.y - pad;
+  const x2 = b.x + b.w + pad;
+  const y2 = b.y + b.h + pad;
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2;
+  const rotateDist = 24 / state.zoom;
+  return {
+    nw: {x: x1, y: y1},
+    n:  {x: cx, y: y1},
+    ne: {x: x2, y: y1},
+    e:  {x: x2, y: cy},
+    se: {x: x2, y: y2},
+    s:  {x: cx, y: y2},
+    sw: {x: x1, y: y2},
+    w:  {x: x1, y: cy},
+    rotate: {x: cx, y: y1 - rotateDist},
+  };
+}
+
+// Hit-test: is the point near a transform handle?
+// Returns the handle name or null. Accounts for stroke rotation.
+function hitTestHandles(s, pt) {
+  if (!s) return null;
+  const b = getStrokeBounds(s);
+  if (!b) return null;
+  const pad = 6;
+  const handleSize = 12 / state.zoom; // larger hit area than visual
+
+  // Transform point to unrotated coordinates
+  const cx = b.x + b.w/2;
+  const cy = b.y + b.h/2;
+  const rotation = s.rotation || 0;
+  let lx = pt.x, ly = pt.y;
+  if (rotation !== 0) {
+    const dx = pt.x - cx;
+    const dy = pt.y - cy;
+    const cos = Math.cos(-rotation);
+    const sin = Math.sin(-rotation);
+    lx = cx + dx*cos - dy*sin;
+    ly = cy + dx*sin + dy*cos;
+  }
+
+  const handles = getHandlePositions(b, pad);
+  for (const [key, pos] of Object.entries(handles)) {
+    if (key === 'rotate') {
+      // Rotate handle is a circle - use radius hit test
+      if (Math.hypot(lx - pos.x, ly - pos.y) < handleSize) return 'rotate';
+    } else {
+      if (Math.abs(lx - pos.x) < handleSize/2 && Math.abs(ly - pos.y) < handleSize/2) {
+        return 'resize-' + key;
+      }
+    }
+  }
+  return null;
+}
+
+function drawStroke(ctx, stroke) {
+  ctx.save();
+  ctx.globalAlpha = stroke.opacity ?? 1;
+  ctx.strokeStyle = stroke.color;
+  ctx.fillStyle = stroke.color;
+  ctx.lineWidth = stroke.size;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Apply rotation around stroke's center
+  const rotation = stroke.rotation || 0;
+  if (rotation !== 0) {
+    const b = getStrokeBounds(stroke);
+    if (b) {
+      const cx = b.x + b.w/2;
+      const cy = b.y + b.h/2;
+      ctx.translate(cx, cy);
+      ctx.rotate(rotation);
+      ctx.translate(-cx, -cy);
+    }
+  }
+
+  if (stroke.type === 'pen') {
+    if (stroke.points.length < 2) { ctx.restore(); return; }
+    ctx.beginPath();
+    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+    for (let i = 1; i < stroke.points.length; i++) {
+      ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+    }
+    ctx.stroke();
+  } else if (stroke.type === 'line') {
+    ctx.beginPath();
+    ctx.moveTo(stroke.x1, stroke.y1);
+    ctx.lineTo(stroke.x2, stroke.y2);
+    ctx.stroke();
+  } else if (stroke.type === 'arrow') {
+    ctx.beginPath();
+    ctx.moveTo(stroke.x1, stroke.y1);
+    ctx.lineTo(stroke.x2, stroke.y2);
+    ctx.stroke();
+    // Arrow head
+    const angle = Math.atan2(stroke.y2 - stroke.y1, stroke.x2 - stroke.x1);
+    const headLen = Math.max(12, stroke.size * 3);
+    ctx.beginPath();
+    ctx.moveTo(stroke.x2, stroke.y2);
+    ctx.lineTo(stroke.x2 - headLen * Math.cos(angle - Math.PI/6), stroke.y2 - headLen * Math.sin(angle - Math.PI/6));
+    ctx.lineTo(stroke.x2 - headLen * Math.cos(angle + Math.PI/6), stroke.y2 - headLen * Math.sin(angle + Math.PI/6));
+    ctx.closePath();
+    ctx.fill();
+  } else if (stroke.type === 'rect') {
+    ctx.strokeRect(stroke.x, stroke.y, stroke.w, stroke.h);
+  } else if (stroke.type === 'circle') {
+    ctx.beginPath();
+    ctx.ellipse(stroke.cx, stroke.cy, Math.abs(stroke.rx), Math.abs(stroke.ry), 0, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (stroke.type === 'text') {
+    ctx.font = `${stroke.size * 4}px "Noto Sans TC", sans-serif`;
+    ctx.textBaseline = 'top';
+    // Multi-line
+    const lines = stroke.text.split('\n');
+    lines.forEach((line, i) => {
+      ctx.fillText(line, stroke.x, stroke.y + i * stroke.size * 4 * 1.3);
+    });
+  }
+  ctx.restore();
+}
+
+function applyTransform() {
+  const t = `translate(${state.panX}px, ${state.panY}px) scale(${state.zoom})`;
+  canvasBg.style.transform = t;
+  canvasDraw.style.transform = t;
+  $('zoomDisplay').textContent = Math.round(state.zoom * 100) + '%';
+}
+
+function fitToWindow() {
+  const m = getActiveMap();
+  if (!m) return;
+  const rect = canvasArea.getBoundingClientRect();
+  const padding = 40;
+  const scaleX = (rect.width - padding * 2) / m.width;
+  const scaleY = (rect.height - padding * 2) / m.height;
+  state.zoom = Math.min(scaleX, scaleY, 1);
+  state.panX = (rect.width - m.width * state.zoom) / 2;
+  state.panY = (rect.height - m.height * state.zoom) / 2;
+  applyTransform();
+}
+
+// ============== Coordinate conversion ==============
+function clientToCanvas(clientX, clientY) {
+  const rect = canvasArea.getBoundingClientRect();
+  const x = (clientX - rect.left - state.panX) / state.zoom;
+  const y = (clientY - rect.top - state.panY) / state.zoom;
+  return {x, y};
+}
+
+// ============== Drawing logic ==============
+let startPoint = null;
+let previewStroke = null;
+
+canvasDraw.addEventListener('mousedown', onPointerDown);
+canvasDraw.addEventListener('mousemove', onPointerMove);
+window.addEventListener('mouseup', onPointerUp);
+
+// Double-click to edit text
+canvasDraw.addEventListener('dblclick', e => {
+  if (!getActiveMap()) return;
+  const pt = clientToCanvas(e.clientX, e.clientY);
+  const map = getActiveMap();
+  // Find text stroke under cursor (top to bottom)
+  for (let i = map.layers.length - 1; i >= 0; i--) {
+    const l = map.layers[i];
+    if (!l.visible) continue;
+    for (let j = l.strokes.length - 1; j >= 0; j--) {
+      const s = l.strokes[j];
+      if (s.type === 'text' && strokeNearPoint(s, pt, 8 / state.zoom)) {
+        editTextStroke(s, e.clientX, e.clientY);
+        return;
+      }
+    }
+  }
+});
+
+// Track mouse position for paste-at-cursor
+canvasArea.addEventListener('mousemove', e => {
+  state.lastMousePos = { clientX: e.clientX, clientY: e.clientY };
+
+  // Update cursor when hovering over transform handles (only in select mode, idle)
+  if (state.tool === 'select' && !state.isDragging && !state.transformMode &&
+      !state.isDrawing && !state.isPanning && state.selectedStrokeIds.length === 1) {
+    const map = getActiveMap();
+    if (!map) return;
+    const sel = map.layers.flatMap(l => l.strokes).find(s => s.id === state.selectedStrokeIds[0]);
+    if (sel) {
+      const pt = clientToCanvas(e.clientX, e.clientY);
+      const h = hitTestHandles(sel, pt);
+      if (h === 'rotate') {
+        canvasDraw.style.cursor = 'grab';
+      } else if (h) {
+        const cursorMap = {
+          'resize-nw': 'nwse-resize', 'resize-se': 'nwse-resize',
+          'resize-ne': 'nesw-resize', 'resize-sw': 'nesw-resize',
+          'resize-n': 'ns-resize', 'resize-s': 'ns-resize',
+          'resize-e': 'ew-resize', 'resize-w': 'ew-resize',
+        };
+        canvasDraw.style.cursor = cursorMap[h] || 'default';
+      } else {
+        canvasDraw.style.cursor = 'default';
+      }
+    }
+  }
+});
+
+// Touch support
+canvasDraw.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  onPointerDown({clientX: t.clientX, clientY: t.clientY, button: 0, preventDefault:()=>{}});
+}, {passive:false});
+canvasDraw.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  onPointerMove({clientX: t.clientX, clientY: t.clientY});
+}, {passive:false});
+canvasDraw.addEventListener('touchend', e => {
+  e.preventDefault();
+  onPointerUp({});
+}, {passive:false});
+
+function onPointerDown(e) {
+  if (!getActiveMap()) return;
+
+  // ============== Calibration mode ==============
+  if (state.calibrating) {
+    const pt = clientToCanvas(e.clientX, e.clientY);
+    if (!state.calibrateStart) {
+      state.calibrateStart = pt;
+      showToast('再點第二個點完成參考線');
+    } else {
+      const dist = Math.hypot(pt.x - state.calibrateStart.x, pt.y - state.calibrateStart.y);
+      if (dist < 5) {
+        showToast('參考線太短，請重新點選', 'error');
+        state.calibrateStart = null;
+        return;
+      }
+      finishCalibration(dist);
+    }
+    return;
+  }
+
+  if (e.button === 1 || state.isSpacePressed || state.tool === 'hand') {
+    state.isPanning = true;
+    state.panStart = {x: e.clientX - state.panX, y: e.clientY - state.panY};
+    canvasDraw.style.cursor = 'grabbing';
+    return;
+  }
+
+  const layer = getActiveLayer();
+  if (!layer || !layer.visible) {
+    showToast('請選擇可見的圖層', 'error');
+    return;
+  }
+
+  const pt = clientToCanvas(e.clientX, e.clientY);
+
+  // ============== Select tool ==============
+  if (state.tool === 'select') {
+    // First, if exactly one stroke is selected, check if user clicked a transform handle
+    if (state.selectedStrokeIds.length === 1) {
+      const map = getActiveMap();
+      let selectedStroke = null;
+      for (const l of map.layers) {
+        const found = l.strokes.find(s => s.id === state.selectedStrokeIds[0]);
+        if (found) { selectedStroke = found; break; }
+      }
+      if (selectedStroke) {
+        const handleHit = hitTestHandles(selectedStroke, pt);
+        if (handleHit) {
+          // Begin transform
+          state.transformMode = handleHit;
+          state.transformStart = {
+            pt: pt,
+            stroke: JSON.parse(JSON.stringify(selectedStroke)),
+            bounds: getStrokeBounds(selectedStroke),
+            ref: selectedStroke,
+          };
+          return;
+        }
+      }
+    }
+
+    // Hit test all visible strokes (top to bottom = last drawn first)
+    const map = getActiveMap();
+    const hitRadius = 8 / state.zoom; // adjust hit area for zoom
+    let hit = null;
+    let hitLayerId = null;
+
+    // Search all visible layers, top layer first (reverse)
+    for (let i = map.layers.length - 1; i >= 0; i--) {
+      const l = map.layers[i];
+      if (!l.visible) continue;
+      // Search strokes in reverse (last drawn = on top)
+      for (let j = l.strokes.length - 1; j >= 0; j--) {
+        if (strokeNearPoint(l.strokes[j], pt, hitRadius)) {
+          hit = l.strokes[j];
+          hitLayerId = l.id;
+          break;
+        }
+      }
+      if (hit) break;
+    }
+
+    if (hit) {
+      // If clicking already-selected item with shift, deselect; otherwise select
+      if (e.shiftKey) {
+        if (state.selectedStrokeIds.includes(hit.id)) {
+          state.selectedStrokeIds = state.selectedStrokeIds.filter(id => id !== hit.id);
+        } else {
+          state.selectedStrokeIds.push(hit.id);
+        }
+      } else {
+        // If hit is already in selection, keep selection (for group drag)
+        if (!state.selectedStrokeIds.includes(hit.id)) {
+          state.selectedStrokeIds = [hit.id];
+        }
+        // Switch active layer to hit's layer
+        map.activeLayerId = hitLayerId;
+        renderLayers();
+      }
+      // Start drag
+      state.isDragging = true;
+      state.dragStart = pt;
+      state.dragOrigin = pt;  // remember initial point for shift-axis lock
+      canvasDraw.style.cursor = 'move';
+    } else {
+      // Clicked empty area - deselect
+      state.selectedStrokeIds = [];
+    }
+    redrawLayers();
+    return;
+  }
+
+  if (state.tool === 'text') {
+    showTextInput(e.clientX, e.clientY, pt);
+    return;
+  }
+
+  if (state.tool === 'eraser') {
+    state.isDrawing = true;
+    eraseAt(pt);
+    return;
+  }
+
+  state.isDrawing = true;
+  startPoint = pt;
+
+  if (state.tool === 'pen') {
+    state.currentStroke = {
+      id: uid(),
+      type: 'pen',
+      color: state.color,
+      size: state.size,
+      opacity: state.opacity,
+      points: [pt],
+    };
+  } else {
+    // Other shape tools - preview
+    previewStroke = {
+      id: uid(),
+      type: state.tool,
+      color: state.color,
+      size: state.size,
+      opacity: state.opacity,
+    };
+  }
+}
+
+function onPointerMove(e) {
+  // Calibration preview
+  if (state.calibrating && state.calibrateStart) {
+    const pt = clientToCanvas(e.clientX, e.clientY);
+    redrawLayers();
+    // Draw temporary calibration line
+    ctxDraw.save();
+    ctxDraw.strokeStyle = '#5B9BD5';
+    ctxDraw.lineWidth = 2 / state.zoom;
+    ctxDraw.setLineDash([8 / state.zoom, 4 / state.zoom]);
+    ctxDraw.beginPath();
+    ctxDraw.moveTo(state.calibrateStart.x, state.calibrateStart.y);
+    ctxDraw.lineTo(pt.x, pt.y);
+    ctxDraw.stroke();
+    // Marker dots
+    ctxDraw.setLineDash([]);
+    ctxDraw.fillStyle = '#5B9BD5';
+    ctxDraw.beginPath();
+    ctxDraw.arc(state.calibrateStart.x, state.calibrateStart.y, 5/state.zoom, 0, Math.PI*2);
+    ctxDraw.fill();
+    ctxDraw.beginPath();
+    ctxDraw.arc(pt.x, pt.y, 5/state.zoom, 0, Math.PI*2);
+    ctxDraw.fill();
+    ctxDraw.restore();
+    const dist = Math.hypot(pt.x - state.calibrateStart.x, pt.y - state.calibrateStart.y);
+    showMeasurement(e.clientX, e.clientY, `${dist.toFixed(1)} 像素`);
+    return;
+  }
+
+  if (state.isPanning) {
+    state.panX = e.clientX - state.panStart.x;
+    state.panY = e.clientY - state.panStart.y;
+    applyTransform();
+    return;
+  }
+
+  // ============== Transform (resize/rotate) ==============
+  if (state.transformMode && state.transformStart) {
+    const pt = clientToCanvas(e.clientX, e.clientY);
+    const orig = state.transformStart.stroke;
+    const origBounds = state.transformStart.bounds;
+    const ref = state.transformStart.ref;
+
+    if (state.transformMode === 'rotate') {
+      const cx = origBounds.x + origBounds.w/2;
+      const cy = origBounds.y + origBounds.h/2;
+      // Reference angle = pointing up from center (where rotate handle starts)
+      const startAngle = -Math.PI / 2;
+      const currentAngle = Math.atan2(pt.y - cy, pt.x - cx);
+      let angle = currentAngle - startAngle;
+      // Snap to 15° if shift held
+      if (e.shiftKey) {
+        const snap = Math.PI / 12;
+        angle = Math.round(angle / snap) * snap;
+      }
+      // Replace the reference stroke's properties from original + new rotation
+      Object.keys(ref).forEach(k => delete ref[k]);
+      Object.assign(ref, JSON.parse(JSON.stringify(orig)));
+      ref.rotation = angle;
+      const deg = Math.round(angle * 180 / Math.PI) % 360;
+      showMeasurement(e.clientX, e.clientY, `${deg}°`);
+    } else {
+      // Resize
+      // Restore original stroke first
+      Object.keys(ref).forEach(k => delete ref[k]);
+      Object.assign(ref, JSON.parse(JSON.stringify(orig)));
+
+      const handle = state.transformMode.replace('resize-', '');
+      // Anchor is opposite corner/edge
+      const anchorMap = {
+        nw: {x: origBounds.x + origBounds.w, y: origBounds.y + origBounds.h},
+        n:  {x: origBounds.x + origBounds.w/2, y: origBounds.y + origBounds.h},
+        ne: {x: origBounds.x, y: origBounds.y + origBounds.h},
+        e:  {x: origBounds.x, y: origBounds.y + origBounds.h/2},
+        se: {x: origBounds.x, y: origBounds.y},
+        s:  {x: origBounds.x + origBounds.w/2, y: origBounds.y},
+        sw: {x: origBounds.x + origBounds.w, y: origBounds.y},
+        w:  {x: origBounds.x + origBounds.w, y: origBounds.y + origBounds.h/2},
+      };
+      const anchor = anchorMap[handle];
+
+      // Account for rotation: transform pointer back to local (unrotated) frame
+      let localPt = pt;
+      const rotation = orig.rotation || 0;
+      if (rotation !== 0) {
+        const cx = origBounds.x + origBounds.w/2;
+        const cy = origBounds.y + origBounds.h/2;
+        const dx = pt.x - cx, dy = pt.y - cy;
+        const cos = Math.cos(-rotation), sin = Math.sin(-rotation);
+        localPt = { x: cx + dx*cos - dy*sin, y: cy + dx*sin + dy*cos };
+      }
+
+      // Calculate scale factors based on which handle
+      let sx = 1, sy = 1;
+      if (handle.includes('w')) {
+        const origDist = anchor.x - origBounds.x;
+        const newDist = anchor.x - localPt.x;
+        if (origDist !== 0) sx = newDist / origDist;
+      } else if (handle.includes('e')) {
+        const origDist = (origBounds.x + origBounds.w) - anchor.x;
+        const newDist = localPt.x - anchor.x;
+        if (origDist !== 0) sx = newDist / origDist;
+      }
+      if (handle.includes('n')) {
+        const origDist = anchor.y - origBounds.y;
+        const newDist = anchor.y - localPt.y;
+        if (origDist !== 0) sy = newDist / origDist;
+      } else if (handle.includes('s')) {
+        const origDist = (origBounds.y + origBounds.h) - anchor.y;
+        const newDist = localPt.y - anchor.y;
+        if (origDist !== 0) sy = newDist / origDist;
+      }
+
+      // Edge handles only scale one axis
+      if (handle === 'n' || handle === 's') sx = 1;
+      if (handle === 'w' || handle === 'e') sy = 1;
+
+      // Hold shift: maintain aspect ratio (for corner handles only)
+      if (e.shiftKey && handle.length === 2) {
+        const m = Math.max(Math.abs(sx), Math.abs(sy));
+        sx = sx < 0 ? -m : m;
+        sy = sy < 0 ? -m : m;
+      }
+
+      // Limit minimum size (prevent collapse)
+      const MIN = 0.05;
+      if (Math.abs(sx) < MIN) sx = sx < 0 ? -MIN : MIN;
+      if (Math.abs(sy) < MIN) sy = sy < 0 ? -MIN : MIN;
+
+      scaleStroke(ref, anchor.x, anchor.y, sx, sy);
+
+      // Show new size
+      const newBounds = getStrokeBounds(ref);
+      if (newBounds) {
+        const display = pixelsToAreaDisplay(newBounds.w, newBounds.h);
+        if (display) showMeasurement(e.clientX, e.clientY, display);
+      }
+    }
+    redrawLayers();
+    return;
+  }
+
+  // Drag selected strokes
+  if (state.isDragging && state.selectedStrokeIds.length > 0) {
+    const pt = clientToCanvas(e.clientX, e.clientY);
+    let dx = pt.x - state.dragStart.x;
+    let dy = pt.y - state.dragStart.y;
+
+    // Shift = axis lock (use direction from origin to determine which axis dominates)
+    if (e.shiftKey && state.dragOrigin) {
+      const totalDx = pt.x - state.dragOrigin.x;
+      const totalDy = pt.y - state.dragOrigin.y;
+      // Pick the dominant axis based on total movement, then lock to it
+      if (Math.abs(totalDx) > Math.abs(totalDy)) {
+        // Horizontal lock: undo any vertical drift accumulated
+        dy = state.dragOrigin.y - state.dragStart.y;
+      } else {
+        dx = state.dragOrigin.x - state.dragStart.x;
+      }
+    }
+
+    const map = getActiveMap();
+    map.layers.forEach(layer => {
+      layer.strokes.forEach(s => {
+        if (state.selectedStrokeIds.includes(s.id)) {
+          translateStroke(s, dx, dy);
+        }
+      });
+    });
+    state.dragStart = { x: state.dragStart.x + dx, y: state.dragStart.y + dy };
+    redrawLayers();
+    return;
+  }
+
+  if (!state.isDrawing) {
+    hideMeasurement();
+    return;
+  }
+
+  const pt = clientToCanvas(e.clientX, e.clientY);
+
+  if (state.tool === 'eraser') {
+    eraseAt(pt);
+    return;
+  }
+
+  if (state.tool === 'pen' && state.currentStroke) {
+    state.currentStroke.points.push(pt);
+    redrawLayers();
+    drawStroke(ctxDraw, state.currentStroke);
+  } else if (previewStroke && startPoint) {
+    let endPt = pt;
+
+    // ============== Shift constraints ==============
+    if (e.shiftKey) {
+      const dx = pt.x - startPoint.x;
+      const dy = pt.y - startPoint.y;
+
+      if (state.tool === 'line' || state.tool === 'arrow') {
+        // Snap to nearest 0/45/90 degrees
+        const angle = Math.atan2(dy, dx);
+        const snap = Math.PI / 4; // 45°
+        const snapped = Math.round(angle / snap) * snap;
+        const dist = Math.hypot(dx, dy);
+        endPt = {
+          x: startPoint.x + Math.cos(snapped) * dist,
+          y: startPoint.y + Math.sin(snapped) * dist,
+        };
+      } else if (state.tool === 'rect' || state.tool === 'circle') {
+        // Force square / circle - use larger dimension, preserve drag direction
+        const size = Math.max(Math.abs(dx), Math.abs(dy));
+        endPt = {
+          x: startPoint.x + (dx >= 0 ? size : -size),
+          y: startPoint.y + (dy >= 0 ? size : -size),
+        };
+      }
+    }
+
+    if (state.tool === 'line' || state.tool === 'arrow') {
+      previewStroke.x1 = startPoint.x;
+      previewStroke.y1 = startPoint.y;
+      previewStroke.x2 = endPt.x;
+      previewStroke.y2 = endPt.y;
+      const dist = Math.hypot(endPt.x - startPoint.x, endPt.y - startPoint.y);
+      const display = pixelsToDisplay(dist);
+      if (display) showMeasurement(e.clientX, e.clientY, display);
+    } else if (state.tool === 'rect') {
+      previewStroke.x = Math.min(startPoint.x, endPt.x);
+      previewStroke.y = Math.min(startPoint.y, endPt.y);
+      previewStroke.w = Math.abs(endPt.x - startPoint.x);
+      previewStroke.h = Math.abs(endPt.y - startPoint.y);
+      const display = pixelsToAreaDisplay(previewStroke.w, previewStroke.h);
+      if (display) showMeasurement(e.clientX, e.clientY, display);
+    } else if (state.tool === 'circle') {
+      previewStroke.cx = (startPoint.x + endPt.x) / 2;
+      previewStroke.cy = (startPoint.y + endPt.y) / 2;
+      previewStroke.rx = Math.abs(endPt.x - startPoint.x) / 2;
+      previewStroke.ry = Math.abs(endPt.y - startPoint.y) / 2;
+      const display = pixelsToAreaDisplay(previewStroke.rx*2, previewStroke.ry*2);
+      if (display) showMeasurement(e.clientX, e.clientY, display);
+    }
+    redrawLayers();
+    drawStroke(ctxDraw, previewStroke);
+  }
+}
+
+function onPointerUp(e) {
+  hideMeasurement();
+
+  // End transform (resize/rotate)
+  if (state.transformMode) {
+    state.transformMode = null;
+    state.transformStart = null;
+    pushHistory();
+    save();
+    return;
+  }
+
+  if (state.isPanning) {
+    state.isPanning = false;
+    canvasDraw.style.cursor = state.tool === 'hand' ? 'grab' : 'crosshair';
+    return;
+  }
+
+  // End drag
+  if (state.isDragging) {
+    state.isDragging = false;
+    state.dragStart = null;
+    state.dragOrigin = null;
+    canvasDraw.style.cursor = state.tool === 'select' ? 'default' : 'crosshair';
+    pushHistory();
+    save();
+    return;
+  }
+
+  if (!state.isDrawing) return;
+  state.isDrawing = false;
+
+  const layer = getActiveLayer();
+  if (!layer) return;
+
+  if (state.tool === 'pen' && state.currentStroke) {
+    if (state.currentStroke.points.length > 1) {
+      layer.strokes.push(state.currentStroke);
+      pushHistory();
+      save();
+    }
+    state.currentStroke = null;
+  } else if (previewStroke) {
+    // Validate it has size
+    let valid = true;
+    if (previewStroke.type === 'rect' && (previewStroke.w < 2 || previewStroke.h < 2)) valid = false;
+    if (previewStroke.type === 'circle' && (previewStroke.rx < 2 || previewStroke.ry < 2)) valid = false;
+    if ((previewStroke.type === 'line' || previewStroke.type === 'arrow')
+        && Math.hypot(previewStroke.x2-previewStroke.x1, previewStroke.y2-previewStroke.y1) < 3) valid = false;
+    if (valid) {
+      layer.strokes.push(previewStroke);
+      pushHistory();
+      save();
+    }
+    previewStroke = null;
+  } else if (state.tool === 'eraser') {
+    pushHistory();
+    save();
+  }
+  redrawLayers();
+  startPoint = null;
+}
+
+function eraseAt(pt) {
+  const layer = getActiveLayer();
+  if (!layer) return;
+  const radius = state.size * 3;
+  layer.strokes = layer.strokes.filter(s => !strokeNearPoint(s, pt, radius));
+  redrawLayers();
+}
+
+function strokeNearPoint(s, pt, r) {
+  // If rotated, transform the point into the stroke's local (unrotated) coordinate system
+  let p = pt;
+  const rotation = s.rotation || 0;
+  if (rotation !== 0) {
+    const b = getStrokeBounds(s);
+    if (b) {
+      const cx = b.x + b.w/2;
+      const cy = b.y + b.h/2;
+      const dx = pt.x - cx;
+      const dy = pt.y - cy;
+      const cos = Math.cos(-rotation);
+      const sin = Math.sin(-rotation);
+      p = { x: cx + dx*cos - dy*sin, y: cy + dx*sin + dy*cos };
+    }
+  }
+  if (s.type === 'pen') {
+    return s.points.some(pp => Math.hypot(pp.x-p.x, pp.y-p.y) < r);
+  } else if (s.type === 'line' || s.type === 'arrow') {
+    return distToLine(p, s.x1, s.y1, s.x2, s.y2) < r;
+  } else if (s.type === 'rect') {
+    return p.x >= s.x-r && p.x <= s.x+s.w+r && p.y >= s.y-r && p.y <= s.y+s.h+r;
+  } else if (s.type === 'circle') {
+    return Math.hypot(p.x-s.cx, p.y-s.cy) < Math.max(s.rx, s.ry) + r;
+  } else if (s.type === 'text') {
+    const b = getStrokeBounds(s);
+    if (b) return p.x >= b.x-r && p.x <= b.x+b.w+r && p.y >= b.y-r && p.y <= b.y+b.h+r;
+    return Math.hypot(p.x-s.x, p.y-s.y) < r * 4;
+  }
+  return false;
+}
+
+function distToLine(p, x1, y1, x2, y2) {
+  const A = p.x - x1, B = p.y - y1, C = x2 - x1, D = y2 - y1;
+  const dot = A*C + B*D, len = C*C + D*D;
+  const param = len ? dot / len : -1;
+  let xx, yy;
+  if (param < 0) { xx = x1; yy = y1; }
+  else if (param > 1) { xx = x2; yy = y2; }
+  else { xx = x1 + param*C; yy = y1 + param*D; }
+  return Math.hypot(p.x-xx, p.y-yy);
+}
+
+// ============== Scale / Calibration ==============
+function pixelsToDisplay(pixels) {
+  const m = getActiveMap();
+  if (!m || !m.scale || !m.scale.pixelsPerCm) return null;
+  const cm = pixels / m.scale.pixelsPerCm;
+  if (cm >= 100) return (cm / 100).toFixed(2) + ' m';
+  return cm.toFixed(1) + ' cm';
+}
+
+function pixelsToAreaDisplay(pixelsW, pixelsH) {
+  const m = getActiveMap();
+  if (!m || !m.scale || !m.scale.pixelsPerCm) return null;
+  const cmW = pixelsW / m.scale.pixelsPerCm;
+  const cmH = pixelsH / m.scale.pixelsPerCm;
+  const wDisp = cmW >= 100 ? (cmW/100).toFixed(2)+'m' : cmW.toFixed(0)+'cm';
+  const hDisp = cmH >= 100 ? (cmH/100).toFixed(2)+'m' : cmH.toFixed(0)+'cm';
+  return `${wDisp} × ${hDisp}`;
+}
+
+function updateScaleIndicator() {
+  const m = getActiveMap();
+  const indicator = $('scaleIndicator');
+  const text = $('scaleText');
+  if (!m) {
+    indicator.style.display = 'none';
+    return;
+  }
+  indicator.style.display = 'flex';
+  if (m.scale && m.scale.pixelsPerCm) {
+    indicator.classList.add('active');
+    // Show 1 meter reference
+    const onePxPerCm = m.scale.pixelsPerCm;
+    text.textContent = `1m = ${(onePxPerCm * 100).toFixed(0)}px・已校準`;
+  } else {
+    indicator.classList.remove('active');
+    text.textContent = '未設定比例尺';
+  }
+}
+
+function showMeasurement(clientX, clientY, text) {
+  const t = $('measureTooltip');
+  if (!text) { t.classList.remove('show'); return; }
+  t.textContent = text;
+  t.style.left = (clientX + 14) + 'px';
+  t.style.top = (clientY + 14) + 'px';
+  t.classList.add('show');
+}
+
+function hideMeasurement() {
+  $('measureTooltip').classList.remove('show');
+}
+
+// Open scale calibration modal
+function openScaleModal() {
+  const m = getActiveMap();
+  if (!m) { showToast('請先建立場地', 'error'); return; }
+  state.calibrating = false;
+  state.calibrateStart = null;
+  state.calibratePixels = null;
+  $('scaleStep2').style.display = 'none';
+  $('scaleRealValue').value = '';
+  $('scaleConfirmBtn').disabled = true;
+  $('scaleStartBtn').textContent = '在圖上拉參考線';
+  $('scaleModal').classList.add('active');
+}
+
+function startCalibrationMode() {
+  state.calibrating = true;
+  state.calibrateStart = null;
+  state.calibratePixels = null;
+  $('scaleModal').classList.remove('active');
+  canvasContainer.classList.add('calibrating');
+  showToast('在圖上點兩個點，拉出已知長度的參考線');
+}
+
+function finishCalibration(pixels) {
+  state.calibratePixels = pixels;
+  state.calibrating = false;
+  canvasContainer.classList.remove('calibrating');
+  $('scaleModal').classList.add('active');
+  $('scaleStep2').style.display = 'block';
+  $('scaleStartBtn').textContent = '重新拉一次參考線';
+  $('scalePixelInfo').textContent = `參考線長度：${pixels.toFixed(1)} 像素`;
+  $('scaleConfirmBtn').disabled = false;
+  setTimeout(() => $('scaleRealValue').focus(), 100);
+}
+
+function applyCalibration() {
+  const realCm = parseFloat($('scaleRealValue').value);
+  if (!realCm || realCm <= 0) {
+    showToast('請輸入有效的公分數', 'error');
+    return;
+  }
+  if (!state.calibratePixels) return;
+  const m = getActiveMap();
+  m.scale = { pixelsPerCm: state.calibratePixels / realCm };
+  $('scaleModal').classList.remove('active');
+  updateScaleIndicator();
+  redrawLayers();
+  save();
+  showToast(`比例尺已設定：1 公尺 = ${(m.scale.pixelsPerCm * 100).toFixed(1)} 像素`, 'success');
+}
+
+// Translate (move) a stroke by dx, dy
+function translateStroke(s, dx, dy) {
+  if (s.type === 'pen') {
+    s.points.forEach(p => { p.x += dx; p.y += dy; });
+  } else if (s.type === 'line' || s.type === 'arrow') {
+    s.x1 += dx; s.y1 += dy;
+    s.x2 += dx; s.y2 += dy;
+  } else if (s.type === 'rect') {
+    s.x += dx; s.y += dy;
+  } else if (s.type === 'circle') {
+    s.cx += dx; s.cy += dy;
+  } else if (s.type === 'text') {
+    s.x += dx; s.y += dy;
+  }
+}
+
+// Scale a stroke around an anchor point by factors (sx, sy)
+function scaleStroke(s, anchorX, anchorY, sx, sy) {
+  const fix = (x, y) => ({
+    x: anchorX + (x - anchorX) * sx,
+    y: anchorY + (y - anchorY) * sy,
+  });
+  if (s.type === 'pen') {
+    s.points.forEach(p => {
+      const np = fix(p.x, p.y);
+      p.x = np.x; p.y = np.y;
+    });
+  } else if (s.type === 'line' || s.type === 'arrow') {
+    const p1 = fix(s.x1, s.y1);
+    const p2 = fix(s.x2, s.y2);
+    s.x1 = p1.x; s.y1 = p1.y;
+    s.x2 = p2.x; s.y2 = p2.y;
+  } else if (s.type === 'rect') {
+    const p1 = fix(s.x, s.y);
+    const p2 = fix(s.x + s.w, s.y + s.h);
+    s.x = Math.min(p1.x, p2.x);
+    s.y = Math.min(p1.y, p2.y);
+    s.w = Math.abs(p2.x - p1.x);
+    s.h = Math.abs(p2.y - p1.y);
+  } else if (s.type === 'circle') {
+    const c = fix(s.cx, s.cy);
+    s.cx = c.x; s.cy = c.y;
+    s.rx = Math.abs(s.rx * sx);
+    s.ry = Math.abs(s.ry * sy);
+  } else if (s.type === 'text') {
+    const c = fix(s.x, s.y);
+    s.x = c.x; s.y = c.y;
+    // Scale font size by average of sx and sy
+    s.size = Math.max(0.5, s.size * (Math.abs(sx) + Math.abs(sy)) / 2);
+  }
+}
+
+// Set rotation directly on a stroke (rotation is around its bounding box center)
+function rotateStroke(s, angle) {
+  s.rotation = angle;
+}
+
+// Get bounding box of a stroke (for selection highlight)
+function getStrokeBounds(s) {
+  if (s.type === 'pen') {
+    if (!s.points.length) return null;
+    let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+    s.points.forEach(p => {
+      if (p.x < minX) minX = p.x; if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x; if (p.y > maxY) maxY = p.y;
+    });
+    return {x: minX, y: minY, w: maxX-minX, h: maxY-minY};
+  } else if (s.type === 'line' || s.type === 'arrow') {
+    return {
+      x: Math.min(s.x1, s.x2), y: Math.min(s.y1, s.y2),
+      w: Math.abs(s.x2-s.x1), h: Math.abs(s.y2-s.y1),
+    };
+  } else if (s.type === 'rect') {
+    return {x: s.x, y: s.y, w: s.w, h: s.h};
+  } else if (s.type === 'circle') {
+    return {x: s.cx-s.rx, y: s.cy-s.ry, w: s.rx*2, h: s.ry*2};
+  } else if (s.type === 'text') {
+    // Approximate text bounds
+    const lines = s.text.split('\n');
+    const lineH = s.size * 4 * 1.3;
+    const maxLen = Math.max(...lines.map(l => l.length));
+    return {x: s.x, y: s.y, w: maxLen * s.size * 2.5, h: lines.length * lineH};
+  }
+  return null;
+}
+
+// ============== Text input ==============
+function showTextInput(clientX, clientY, canvasPt) {
+  // Remove any existing text input first
+  if (state.textInput) {
+    state.textInput.wrapper.remove();
+    state.textInput = null;
+  }
+
+  // Constrain position so input doesn't go off-screen
+  const winW = window.innerWidth;
+  const winH = window.innerHeight;
+  const inputWidth = 240;
+  const left = Math.min(clientX, winW - inputWidth - 20);
+  const top = Math.min(clientY, winH - 120);
+
+  // Create wrapper
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = `
+    position: fixed;
+    left: ${left}px;
+    top: ${top}px;
+    z-index: 1500;
+    background: #1e1e1e;
+    border: 1px solid ${state.color};
+    border-radius: 6px;
+    padding: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: ${inputWidth}px;
+  `;
+
+  // Textarea
+  const input = document.createElement('textarea');
+  input.style.cssText = `
+    background: #0a0a0a;
+    color: ${state.color};
+    border: 1px solid #2f2f2f;
+    border-radius: 4px;
+    font-family: "Noto Sans TC", sans-serif;
+    font-size: 14px;
+    padding: 8px 10px;
+    outline: none;
+    resize: vertical;
+    width: 100%;
+    min-height: 60px;
+    line-height: 1.4;
+    box-sizing: border-box;
+  `;
+  input.placeholder = '輸入文字後按「加入」或 Ctrl+Enter';
+
+  // Button row
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex; gap:6px; justify-content:flex-end;';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = '取消';
+  cancelBtn.style.cssText = `
+    padding: 5px 12px;
+    background: #2a2a2a;
+    border: 1px solid #404040;
+    border-radius: 4px;
+    color: #e8e8e8;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  `;
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.textContent = '加入文字';
+  confirmBtn.style.cssText = `
+    padding: 5px 12px;
+    background: #5B9BD5;
+    border: 1px solid #5B9BD5;
+    border-radius: 4px;
+    color: white;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: 500;
+  `;
+
+  btnRow.appendChild(cancelBtn);
+  btnRow.appendChild(confirmBtn);
+  wrapper.appendChild(input);
+  wrapper.appendChild(btnRow);
+  document.body.appendChild(wrapper);
+
+  // IMPORTANT: Use setTimeout to ensure focus works after the click event finishes
+  setTimeout(() => {
+    input.focus();
+  }, 50);
+
+  state.textInput = { wrapper, input };
+
+  const cleanup = () => {
+    wrapper.remove();
+    state.textInput = null;
+  };
+
+  const commit = () => {
+    const text = input.value.replace(/\s+$/, ''); // Trim trailing whitespace only, keep middle newlines
+    if (text) {
+      const layer = getActiveLayer();
+      if (layer) {
+        layer.strokes.push({
+          id: uid(),
+          type: 'text',
+          text: text,
+          x: canvasPt.x,
+          y: canvasPt.y,
+          color: state.color,
+          size: state.size,
+          opacity: state.opacity,
+        });
+        pushHistory();
+        redrawLayers();
+        save();
+        showToast('文字已加入', 'success');
+      }
+    }
+    cleanup();
+  };
+
+  // Confirm button
+  confirmBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    commit();
+  });
+
+  // Cancel button
+  cancelBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    cleanup();
+  });
+
+  // Keyboard shortcuts inside textarea
+  input.addEventListener('keydown', e => {
+    e.stopPropagation(); // Prevent global keyboard shortcuts (V, P, T, etc.)
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      commit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cleanup();
+    }
+  });
+
+  // Prevent wrapper clicks from closing input
+  wrapper.addEventListener('mousedown', e => e.stopPropagation());
+  wrapper.addEventListener('click', e => e.stopPropagation());
+}
+
+// Edit an existing text stroke (called from double-click)
+function editTextStroke(stroke, clientX, clientY) {
+  if (state.textInput) {
+    state.textInput.wrapper.remove();
+    state.textInput = null;
+  }
+
+  const winW = window.innerWidth;
+  const winH = window.innerHeight;
+  const inputWidth = 240;
+  const left = Math.min(clientX, winW - inputWidth - 20);
+  const top = Math.min(clientY, winH - 160);
+
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = `
+    position: fixed;
+    left: ${left}px;
+    top: ${top}px;
+    z-index: 1500;
+    background: #1e1e1e;
+    border: 1px solid ${stroke.color};
+    border-radius: 6px;
+    padding: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: ${inputWidth}px;
+  `;
+
+  const label = document.createElement('div');
+  label.textContent = '編輯文字';
+  label.style.cssText = 'font-size:10px; color:#888; font-family:"Space Mono",monospace; letter-spacing:1px; text-transform:uppercase;';
+
+  const input = document.createElement('textarea');
+  input.style.cssText = `
+    background: #0a0a0a;
+    color: ${stroke.color};
+    border: 1px solid #2f2f2f;
+    border-radius: 4px;
+    font-family: "Noto Sans TC", sans-serif;
+    font-size: 14px;
+    padding: 8px 10px;
+    outline: none;
+    resize: vertical;
+    width: 100%;
+    min-height: 60px;
+    line-height: 1.4;
+    box-sizing: border-box;
+  `;
+  input.value = stroke.text;
+
+  const btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex; gap:6px; justify-content:flex-end;';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.textContent = '取消';
+  cancelBtn.style.cssText = `padding:5px 12px; background:#2a2a2a; border:1px solid #404040; border-radius:4px; color:#e8e8e8; font-family:inherit; font-size:12px; cursor:pointer;`;
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.textContent = '更新';
+  confirmBtn.style.cssText = `padding:5px 12px; background:#5B9BD5; border:1px solid #5B9BD5; border-radius:4px; color:white; font-family:inherit; font-size:12px; cursor:pointer; font-weight:500;`;
+
+  btnRow.appendChild(cancelBtn);
+  btnRow.appendChild(confirmBtn);
+  wrapper.appendChild(label);
+  wrapper.appendChild(input);
+  wrapper.appendChild(btnRow);
+  document.body.appendChild(wrapper);
+
+  setTimeout(() => {
+    input.focus();
+    input.select();
+  }, 50);
+
+  state.textInput = { wrapper, input };
+
+  const cleanup = () => {
+    wrapper.remove();
+    state.textInput = null;
+  };
+
+  const commit = () => {
+    const text = input.value.replace(/\s+$/, '');
+    if (text) {
+      stroke.text = text;
+      pushHistory();
+      redrawLayers();
+      save();
+      showToast('文字已更新', 'success');
+    } else {
+      // Empty text = delete the stroke
+      const m = getActiveMap();
+      m.layers.forEach(l => {
+        l.strokes = l.strokes.filter(s => s.id !== stroke.id);
+      });
+      state.selectedStrokeIds = state.selectedStrokeIds.filter(id => id !== stroke.id);
+      pushHistory();
+      redrawLayers();
+      save();
+      showToast('空白文字已刪除');
+    }
+    cleanup();
+  };
+
+  confirmBtn.addEventListener('click', e => { e.stopPropagation(); commit(); });
+  cancelBtn.addEventListener('click', e => { e.stopPropagation(); cleanup(); });
+
+  input.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      commit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cleanup();
+    }
+  });
+
+  wrapper.addEventListener('mousedown', e => e.stopPropagation());
+  wrapper.addEventListener('click', e => e.stopPropagation());
+}
+
+// ============== UI rendering ==============
+function renderTabs() {
+  const tabs = $('mapTabs');
+  tabs.innerHTML = '';
+  state.maps.forEach(m => {
+    const tab = document.createElement('div');
+    tab.className = 'map-tab' + (m.id === state.activeMapId ? ' active' : '');
+    tab.innerHTML = `
+      <span class="tab-name">${escapeHtml(m.name)}</span>
+      <span class="tab-close" data-id="${m.id}">×</span>
+    `;
+    tab.addEventListener('click', e => {
+      if (e.target.classList.contains('tab-close')) {
+        e.stopPropagation();
+        removeMap(m.id);
+      } else {
+        switchMap(m.id);
+      }
+    });
+    tabs.appendChild(tab);
+  });
+}
+
+function renderLayers() {
+  const list = $('layersList');
+  list.innerHTML = '';
+  const m = getActiveMap();
+  if (!m) {
+    list.innerHTML = '<div class="layer-empty">請先建立或選擇一個場地</div>';
+    return;
+  }
+  // Render top to bottom (reversed - top layer first visually)
+  [...m.layers].reverse().forEach(layer => {
+    const item = document.createElement('div');
+    item.className = 'layer-item' + (layer.id === m.activeLayerId ? ' active' : '');
+    item.innerHTML = `
+      <button class="layer-visibility ${layer.visible ? '' : 'hidden'}" data-id="${layer.id}" title="顯示/隱藏">
+        ${layer.visible
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+        }
+      </button>
+      <div class="layer-color" style="background:${layer.color || '#5B9BD5'}"></div>
+      <input class="layer-name" value="${escapeHtml(layer.name)}" data-id="${layer.id}" readonly>
+      <div class="layer-actions">
+        <button class="icon-btn" data-action="delete" data-id="${layer.id}" title="刪除">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </button>
+      </div>
+    `;
+    item.addEventListener('click', e => {
+      if (e.target.closest('.layer-visibility')) {
+        toggleLayerVisibility(layer.id);
+      } else if (e.target.closest('[data-action="delete"]')) {
+        removeLayer(layer.id);
+      } else if (e.target.classList.contains('layer-name')) {
+        // Will handle via dblclick
+      } else {
+        setActiveLayer(layer.id);
+      }
+    });
+    const nameInput = item.querySelector('.layer-name');
+    nameInput.addEventListener('dblclick', () => {
+      nameInput.removeAttribute('readonly');
+      nameInput.focus();
+      nameInput.select();
+    });
+    nameInput.addEventListener('blur', () => {
+      nameInput.setAttribute('readonly', 'true');
+      renameLayer(layer.id, nameInput.value);
+    });
+    nameInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') nameInput.blur();
+    });
+    list.appendChild(item);
+  });
+}
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+// ============== Tool selection ==============
+document.querySelectorAll('.tool-btn[data-tool]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.dataset.tool === 'calibrate') return;  // handled separately
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.tool = btn.dataset.tool;
+    // Clear selection when switching to non-select tool
+    if (state.tool !== 'select' && state.selectedStrokeIds.length > 0) {
+      state.selectedStrokeIds = [];
+      redrawLayers();
+    }
+    // Set cursor based on tool
+    if (state.tool === 'hand') canvasDraw.style.cursor = 'grab';
+    else if (state.tool === 'select') canvasDraw.style.cursor = 'default';
+    else canvasDraw.style.cursor = 'crosshair';
+  });
+});
+
+// ============== Color/size selection ==============
+document.querySelectorAll('.color-swatch[data-color]').forEach(s => {
+  s.addEventListener('click', () => {
+    document.querySelectorAll('.color-swatch').forEach(b => b.classList.remove('active'));
+    s.classList.add('active');
+    state.color = s.dataset.color;
+  });
+});
+
+$('customColor').addEventListener('click', e => {
+  e.stopPropagation();
+  const popup = $('colorPickerPopup');
+  const rect = e.target.getBoundingClientRect();
+  popup.style.left = rect.left + 'px';
+  popup.style.top = (rect.bottom + 8) + 'px';
+  popup.classList.toggle('active');
+});
+
+$('customColorInput').addEventListener('change', e => {
+  state.color = e.target.value;
+  $('customColor').style.background = e.target.value;
+  $('customColor').classList.remove('custom');
+  document.querySelectorAll('.color-swatch').forEach(b => b.classList.remove('active'));
+  $('customColor').classList.add('active');
+  $('colorPickerPopup').classList.remove('active');
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.color-picker-popup') && !e.target.closest('#customColor')) {
+    $('colorPickerPopup').classList.remove('active');
+  }
+});
+
+document.querySelectorAll('.size-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.size-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    state.size = parseInt(b.dataset.size);
+  });
+});
+
+$('opacityRange').addEventListener('input', e => {
+  state.opacity = parseInt(e.target.value) / 100;
+});
+
+// ============== New map ==============
+$('newMapBtn').addEventListener('click', openNewMapModal);
+$('emptyUploadBtn').addEventListener('click', openNewMapModal);
+
+function openNewMapModal() {
+  $('newMapModal').classList.add('active');
+  $('newMapName').value = '';
+  $('newMapFile').value = '';
+  setTimeout(() => $('newMapName').focus(), 100);
+}
+
+$('cancelNewMap').addEventListener('click', () => $('newMapModal').classList.remove('active'));
+
+$('confirmNewMap').addEventListener('click', () => {
+  const name = $('newMapName').value.trim();
+  const file = $('newMapFile').files[0];
+  if (!file) {
+    showToast('請選擇圖片檔', 'error');
+    return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('圖片過大(建議 10MB 以下)', 'error');
+    return;
+  }
+  $('newMapModal').classList.remove('active');
+  addMap(name, file);
+});
+
+// ============== Layer add ==============
+$('addLayerBtn').addEventListener('click', addLayer);
+
+// ============== Scale calibration ==============
+$('calibrateBtn').addEventListener('click', e => {
+  // Don't activate as a "tool" - immediately open modal
+  e.stopPropagation();
+  // Reset visual state - keep previous tool active
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.tool-btn[data-tool="${state.tool}"]`)?.classList.add('active');
+  openScaleModal();
+});
+
+$('scaleSetBtn').addEventListener('click', openScaleModal);
+
+$('scaleStartBtn').addEventListener('click', startCalibrationMode);
+$('scaleCancelBtn').addEventListener('click', () => {
+  $('scaleModal').classList.remove('active');
+  state.calibrating = false;
+  state.calibrateStart = null;
+  canvasContainer.classList.remove('calibrating');
+  redrawLayers();
+});
+$('scaleConfirmBtn').addEventListener('click', applyCalibration);
+$('scaleRealValue').addEventListener('keydown', e => {
+  if (e.key === 'Enter') applyCalibration();
+});
+
+// ============== Zoom ==============
+$('zoomIn').addEventListener('click', () => zoomBy(1.2));
+$('zoomOut').addEventListener('click', () => zoomBy(1/1.2));
+$('zoomFit').addEventListener('click', fitToWindow);
+
+function zoomBy(factor) {
+  const rect = canvasArea.getBoundingClientRect();
+  const cx = rect.width / 2;
+  const cy = rect.height / 2;
+  const newZoom = Math.max(0.1, Math.min(8, state.zoom * factor));
+  state.panX = cx - (cx - state.panX) * (newZoom / state.zoom);
+  state.panY = cy - (cy - state.panY) * (newZoom / state.zoom);
+  state.zoom = newZoom;
+  applyTransform();
+}
+
+// Wheel zoom
+canvasArea.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) {
+    const factor = e.deltaY < 0 ? 1.1 : 1/1.1;
+    const rect = canvasArea.getBoundingClientRect();
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    const newZoom = Math.max(0.1, Math.min(8, state.zoom * factor));
+    state.panX = cx - (cx - state.panX) * (newZoom / state.zoom);
+    state.panY = cy - (cy - state.panY) * (newZoom / state.zoom);
+    state.zoom = newZoom;
+    applyTransform();
+  } else {
+    state.panX -= e.deltaX;
+    state.panY -= e.deltaY;
+    applyTransform();
+  }
+}, {passive: false});
+
+// ============== Undo/redo ==============
+$('undoBtn').addEventListener('click', undo);
+$('redoBtn').addEventListener('click', redo);
+
+// ============== Export ==============
+$('exportBtn').addEventListener('click', () => $('exportModal').classList.add('active'));
+$('closeExportModal').addEventListener('click', () => $('exportModal').classList.remove('active'));
+
+$('exportPNG').addEventListener('click', () => {
+  const m = getActiveMap();
+  if (!m) { showToast('沒有場地可匯出', 'error'); return; }
+  const merge = document.createElement('canvas');
+  merge.width = m.width;
+  merge.height = m.height;
+  const mctx = merge.getContext('2d');
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    mctx.drawImage(img, 0, 0);
+    m.layers.forEach(layer => {
+      if (!layer.visible) return;
+      layer.strokes.forEach(s => drawStroke(mctx, s));
+    });
+    merge.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${m.name}-${Date.now()}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('PNG 已匯出', 'success');
+    });
+  };
+  img.onerror = () => {
+    showToast('圖片載入失敗,可能是 CORS 設定問題', 'error');
+  };
+  img.src = m.imageData;
+});
+
+$('exportJSON').addEventListener('click', () => {
+  const data = JSON.stringify({maps: state.maps, version: 1}, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `venue-plan-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('JSON 已匯出', 'success');
+});
+
+$('importJSON').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data.maps) throw new Error('Invalid format');
+      if (confirm('匯入會合併到現有資料，確定？')) {
+        state.maps = state.maps.concat(data.maps);
+        if (!state.activeMapId && state.maps.length) state.activeMapId = state.maps[0].id;
+        save();
+        renderTabs();
+        renderLayers();
+        renderCanvas();
+        showToast('匯入成功', 'success');
+        $('exportModal').classList.remove('active');
+      }
+    } catch (err) {
+      showToast('JSON 格式錯誤', 'error');
+    }
+  };
+  reader.readAsText(file);
+});
+
+// ============== Keyboard ==============
+document.addEventListener('keydown', e => {
+  if (state.textInput || $('newMapModal').classList.contains('active')) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  if (e.code === 'Space') {
+    e.preventDefault();
+    state.isSpacePressed = true;
+    canvasDraw.style.cursor = 'grab';
+    return;
+  }
+
+  // Delete/Backspace - delete selected
+  if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedStrokeIds.length > 0) {
+    e.preventDefault();
+    deleteSelected();
+    return;
+  }
+
+  // Esc - deselect
+  if (e.key === 'Escape' && state.selectedStrokeIds.length > 0) {
+    state.selectedStrokeIds = [];
+    redrawLayers();
+    return;
+  }
+
+  // Arrow keys - move selected strokes
+  if (state.selectedStrokeIds.length > 0 && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+    e.preventDefault();
+    const step = e.shiftKey ? 10 : 1;
+    let dx = 0, dy = 0;
+    if (e.key === 'ArrowUp') dy = -step;
+    else if (e.key === 'ArrowDown') dy = step;
+    else if (e.key === 'ArrowLeft') dx = -step;
+    else if (e.key === 'ArrowRight') dx = step;
+    moveSelected(dx, dy);
+    return;
+  }
+
+  // Ctrl+A - select all in active layer
+  if ((e.ctrlKey || e.metaKey) && e.key === 'a' && state.tool === 'select') {
+    e.preventDefault();
+    selectAllInActiveLayer();
+    return;
+  }
+
+  // Ctrl+C - copy selected
+  if ((e.ctrlKey || e.metaKey) && e.key === 'c' && state.selectedStrokeIds.length > 0) {
+    e.preventDefault();
+    copySelected();
+    return;
+  }
+
+  // Ctrl+X - cut selected
+  if ((e.ctrlKey || e.metaKey) && e.key === 'x' && state.selectedStrokeIds.length > 0) {
+    e.preventDefault();
+    cutSelected();
+    return;
+  }
+
+  // Ctrl+V - paste from clipboard
+  if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+    e.preventDefault();
+    pasteFromClipboard();
+    return;
+  }
+
+  // Ctrl+D - duplicate selected
+  if ((e.ctrlKey || e.metaKey) && e.key === 'd' && state.selectedStrokeIds.length > 0) {
+    e.preventDefault();
+    duplicateSelected();
+    return;
+  }
+
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+
+  // M key - open calibration modal
+  if (e.key.toLowerCase() === 'm' && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    openScaleModal();
+    return;
+  }
+
+  const map = {v:'select', p:'pen', l:'line', a:'arrow', r:'rect', c:'circle', t:'text', e:'eraser', h:'hand'};
+  const tool = map[e.key.toLowerCase()];
+  if (tool) {
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.tool-btn[data-tool="${tool}"]`).classList.add('active');
+    state.tool = tool;
+    if (tool !== 'select' && state.selectedStrokeIds.length > 0) {
+      state.selectedStrokeIds = [];
+      redrawLayers();
+    }
+    if (tool === 'hand') canvasDraw.style.cursor = 'grab';
+    else if (tool === 'select') canvasDraw.style.cursor = 'default';
+    else canvasDraw.style.cursor = 'crosshair';
+  }
+});
+
+// Delete selected strokes
+function deleteSelected() {
+  const m = getActiveMap();
+  if (!m || state.selectedStrokeIds.length === 0) return;
+  m.layers.forEach(layer => {
+    layer.strokes = layer.strokes.filter(s => !state.selectedStrokeIds.includes(s.id));
+  });
+  const count = state.selectedStrokeIds.length;
+  state.selectedStrokeIds = [];
+  pushHistory();
+  redrawLayers();
+  save();
+  showToast(`已刪除 ${count} 個項目`, 'success');
+}
+
+// Select all in active layer
+function selectAllInActiveLayer() {
+  const layer = getActiveLayer();
+  if (!layer || !layer.visible) return;
+  state.selectedStrokeIds = layer.strokes.map(s => s.id);
+  redrawLayers();
+  showToast(`已選取圖層內 ${state.selectedStrokeIds.length} 個項目`);
+}
+
+// Move selected strokes by dx, dy (used by arrow keys)
+let arrowMoveTimer = null;
+function moveSelected(dx, dy) {
+  const m = getActiveMap();
+  if (!m || state.selectedStrokeIds.length === 0) return;
+  m.layers.forEach(layer => {
+    layer.strokes.forEach(s => {
+      if (state.selectedStrokeIds.includes(s.id)) {
+        translateStroke(s, dx, dy);
+      }
+    });
+  });
+  redrawLayers();
+  // Debounce: save and push history only after user stops pressing
+  clearTimeout(arrowMoveTimer);
+  arrowMoveTimer = setTimeout(() => {
+    pushHistory();
+    save();
+  }, 400);
+}
+
+// Duplicate selected (in-place +20px offset, no clipboard involved)
+function duplicateSelected() {
+  const m = getActiveMap();
+  if (!m || state.selectedStrokeIds.length === 0) return;
+  const newIds = [];
+  m.layers.forEach(layer => {
+    const toDup = layer.strokes.filter(s => state.selectedStrokeIds.includes(s.id));
+    toDup.forEach(s => {
+      const copy = JSON.parse(JSON.stringify(s));
+      copy.id = uid();
+      translateStroke(copy, 20, 20);
+      layer.strokes.push(copy);
+      newIds.push(copy.id);
+    });
+  });
+  state.selectedStrokeIds = newIds;
+  pushHistory();
+  redrawLayers();
+  save();
+  showToast(`已複製 ${newIds.length} 個項目`, 'success');
+}
+
+// Copy selected to clipboard (does not modify the canvas)
+function copySelected() {
+  const m = getActiveMap();
+  if (!m || state.selectedStrokeIds.length === 0) {
+    showToast('沒有選取任何項目', 'error');
+    return;
+  }
+  const copied = [];
+  m.layers.forEach(layer => {
+    layer.strokes.forEach(s => {
+      if (state.selectedStrokeIds.includes(s.id)) {
+        copied.push(JSON.parse(JSON.stringify(s)));
+      }
+    });
+  });
+  if (copied.length === 0) return;
+
+  // Calculate bounding box of all copied strokes (used as anchor for paste)
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  copied.forEach(s => {
+    const b = getStrokeBounds(s);
+    if (b) {
+      if (b.x < minX) minX = b.x;
+      if (b.y < minY) minY = b.y;
+      if (b.x + b.w > maxX) maxX = b.x + b.w;
+      if (b.y + b.h > maxY) maxY = b.y + b.h;
+    }
+  });
+  state.clipboard = {
+    strokes: copied,
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+  };
+  showToast(`已複製 ${copied.length} 個項目`, 'success');
+}
+
+// Cut = copy + delete
+function cutSelected() {
+  const m = getActiveMap();
+  if (!m || state.selectedStrokeIds.length === 0) {
+    showToast('沒有選取任何項目', 'error');
+    return;
+  }
+  const count = state.selectedStrokeIds.length;
+  copySelected();
+  // copySelected shows its own toast - override it
+  m.layers.forEach(layer => {
+    layer.strokes = layer.strokes.filter(s => !state.selectedStrokeIds.includes(s.id));
+  });
+  state.selectedStrokeIds = [];
+  pushHistory();
+  redrawLayers();
+  save();
+  showToast(`已剪下 ${count} 個項目`, 'success');
+}
+
+// Paste from clipboard at cursor position (or canvas center if cursor not on canvas)
+function pasteFromClipboard() {
+  if (!state.clipboard || !state.clipboard.strokes.length) {
+    showToast('剪貼簿是空的', 'error');
+    return;
+  }
+  const m = getActiveMap();
+  if (!m) {
+    showToast('請先建立場地', 'error');
+    return;
+  }
+  const layer = getActiveLayer();
+  if (!layer || !layer.visible) {
+    showToast('請選擇可見的圖層', 'error');
+    return;
+  }
+
+  // Determine paste anchor point (canvas coordinates)
+  let pastePt;
+  if (state.lastMousePos) {
+    const rect = canvasArea.getBoundingClientRect();
+    // Check mouse is within canvas area
+    const mx = state.lastMousePos.clientX;
+    const my = state.lastMousePos.clientY;
+    if (mx >= rect.left && mx <= rect.right && my >= rect.top && my <= rect.bottom) {
+      pastePt = clientToCanvas(mx, my);
+    }
+  }
+  if (!pastePt) {
+    // Fallback: paste at center of visible canvas area
+    const rect = canvasArea.getBoundingClientRect();
+    pastePt = clientToCanvas(rect.left + rect.width/2, rect.top + rect.height/2);
+  }
+
+  // Translate each stroke so the clipboard's center moves to pastePt
+  const dx = pastePt.x - state.clipboard.centerX;
+  const dy = pastePt.y - state.clipboard.centerY;
+
+  const newIds = [];
+  state.clipboard.strokes.forEach(s => {
+    const copy = JSON.parse(JSON.stringify(s));
+    copy.id = uid();
+    translateStroke(copy, dx, dy);
+    layer.strokes.push(copy);
+    newIds.push(copy.id);
+  });
+
+  // Select the newly pasted items
+  state.selectedStrokeIds = newIds;
+  // Switch to select tool so user can immediately move/adjust
+  if (state.tool !== 'select') {
+    state.tool = 'select';
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.tool-btn[data-tool="select"]')?.classList.add('active');
+    canvasDraw.style.cursor = 'default';
+  }
+  pushHistory();
+  redrawLayers();
+  save();
+  showToast(`已貼上 ${newIds.length} 個項目`, 'success');
+}
+
+document.addEventListener('keyup', e => {
+  if (e.code === 'Space') {
+    state.isSpacePressed = false;
+    canvasDraw.style.cursor = state.tool === 'hand' ? 'grab' : 'crosshair';
+  }
+});
+
+// ============== Auth & Init ==============
+async function showApp() {
+  $('loginScreen').style.display = 'none';
+  $('appRoot').style.display = 'grid';
+  $('userEmail').textContent = state.user.email;
+
+  await load();
+
+  renderTabs();
+  renderLayers();
+  renderCanvas();
+  if (getActiveMap()) fitToWindow();
+  canvasDraw.style.cursor = 'default';
+
+  setTimeout(() => {
+    if (state.maps.length === 0) {
+      showToast('快捷鍵: V 選取 / P 畫筆 / T 文字 / E 橡皮擦 / 空白鍵+拖曳 平移');
+    } else {
+      showToast(`已載入 ${state.maps.length} 個場地`, 'success');
+    }
+  }, 500);
+}
+
+function showLogin(errorMsg) {
+  $('loginScreen').style.display = 'flex';
+  $('appRoot').style.display = 'none';
+  if (errorMsg) {
+    $('loginError').textContent = errorMsg;
+    $('loginError').style.display = 'block';
+  } else {
+    $('loginError').style.display = 'none';
+  }
+  setTimeout(() => $('loginEmail').focus(), 100);
+}
+
+// Login button
+$('loginBtn').addEventListener('click', async () => {
+  const email = $('loginEmail').value.trim();
+  const password = $('loginPassword').value;
+  if (!email || !password) {
+    $('loginError').textContent = '請輸入 email 和密碼';
+    $('loginError').style.display = 'block';
+    return;
+  }
+  $('loginBtn').disabled = true;
+  $('loginBtn').textContent = '登入中...';
+  $('loginError').style.display = 'none';
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    state.user = data.user;
+    await showApp();
+  } catch (err) {
+    $('loginError').textContent = '登入失敗:' + (err.message || err);
+    $('loginError').style.display = 'block';
+  } finally {
+    $('loginBtn').disabled = false;
+    $('loginBtn').textContent = '登入';
+  }
+});
+
+// Login on Enter key
+['loginEmail','loginPassword'].forEach(id => {
+  $(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') $('loginBtn').click();
+  });
+});
+
+// Logout button
+$('logoutBtn').addEventListener('click', async () => {
+  if (!confirm('確定要登出嗎?未同步的變更會嘗試先存檔。')) return;
+  // Try one final sync before logout
+  if (state.pendingMapSaves.size > 0 || state.pendingLayerSaves.size > 0) {
+    clearTimeout(state.saveTimer);
+    await syncToSupabase();
+  }
+  await supabase.auth.signOut();
+  state.user = null;
+  state.maps = [];
+  state.activeMapId = null;
+  showLogin();
+});
+
+// Check existing session on page load
+(async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session && session.user) {
+    state.user = session.user;
+    await showApp();
+  } else {
+    showLogin();
+  }
+})();
+
+window.addEventListener('resize', () => {
+  if (getActiveMap()) applyTransform();
+});
+
+// Warn before leaving if there are pending saves
+window.addEventListener('beforeunload', e => {
+  if (state.pendingMapSaves.size > 0 || state.pendingLayerSaves.size > 0) {
+    e.preventDefault();
+    e.returnValue = '還有未同步的變更,確定要離開嗎?';
+    return e.returnValue;
+  }
+});
+</script>
+
+</body>
+</html>

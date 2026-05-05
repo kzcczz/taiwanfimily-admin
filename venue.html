@@ -6,6 +6,11 @@
 <title>場地規劃工具 / Venue Planner</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// Supabase SDK 載入後叫 window.supabase,先搬到 window.SupabaseSDK 避免變數衝突
+window.SupabaseSDK = window.supabase;
+delete window.supabase;
+</script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1073,7 +1078,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 // ⚠ 設定區
 const SUPABASE_URL = 'https://gexcoudliocybhmlziss.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable__XRn__8TPSQdQYJxmCDl2g_JukRY7DE';
+const SUPABASE_ANON_KEY = 'PLEASE_REPLACE_WITH_YOUR_ANON_KEY';
 
 // ============== Auth 共用機制 ==============
 // 讀 admin 後台儲存的 token (key: 'tf_token', expiry: 'tf_expiry')
@@ -1098,11 +1103,15 @@ if (!authToken) {
 // 建立 Supabase client,帶上 user 的 token (這樣 RLS 才會認得是已登入使用者)
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   global: {
-    headers: { Authorization: `Bearer ${authToken}` },
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${authToken}`,
+    },
   },
   auth: {
-    persistSession: false,    // 不用 SDK 的 session 系統
-    autoRefreshToken: false,  // 不自動 refresh,過期靠 admin 重登
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
   },
 });
 
@@ -1232,7 +1241,7 @@ async function syncToSupabase() {
     for (const id of mapIds) {
       const m = state.maps.find(x => x.id === id);
       if (!m) continue;
-      const { error } = await supabase
+      const { error } = await db
         .from('venue_maps')
         .update({
           name: m.name,
@@ -1253,7 +1262,7 @@ async function syncToSupabase() {
         if (l) { layer = l; mapId = m.id; break; }
       }
       if (!layer) continue;
-      const { error } = await supabase
+      const { error } = await db
         .from('venue_layers')
         .update({
           name: layer.name,
@@ -1285,14 +1294,14 @@ async function syncToSupabase() {
 async function load() {
   try {
     setSyncStatus('syncing', '載入中...');
-    const { data: maps, error: mapsError } = await supabase
+    const { data: maps, error: mapsError } = await db
       .from('venue_maps')
       .select('*')
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (mapsError) throw mapsError;
 
-    const { data: layers, error: layersError } = await supabase
+    const { data: layers, error: layersError } = await db
       .from('venue_layers')
       .select('*')
       .order('sort_order', { ascending: true })
@@ -1374,7 +1383,7 @@ async function addMap(name, file) {
       .getPublicUrl(filename);
     const publicUrl = urlData.publicUrl;
 
-    const { data: mapRow, error: mapError } = await supabase
+    const { data: mapRow, error: mapError } = await db
       .from('venue_maps')
       .insert({
         name: name || `場地 ${state.maps.length + 1}`,
@@ -1388,7 +1397,7 @@ async function addMap(name, file) {
       .single();
     if (mapError) throw mapError;
 
-    const { data: layerRow, error: layerError } = await supabase
+    const { data: layerRow, error: layerError } = await db
       .from('venue_layers')
       .insert({
         map_id: mapRow.id,
@@ -1491,7 +1500,7 @@ async function addLayer() {
   if (!m) return;
   setSyncStatus('syncing', '新增圖層...');
   try {
-    const { data: layerRow, error } = await supabase
+    const { data: layerRow, error } = await db
       .from('venue_layers')
       .insert({
         map_id: m.id,

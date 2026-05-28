@@ -514,9 +514,16 @@
 
     <div class="section">
       <div class="section-head">
-        <div class="section-head-title">清唱歌曲 <span id="singalong-count" style="color:var(--muted);font-size:12px;font-weight:400;"></span></div>
+        <div class="section-head-title">清唱歌曲・第 1 順位排行 <span id="singalong-first-count" style="color:var(--muted);font-size:12px;font-weight:400;"></span></div>
       </div>
-      <div class="section-body"><div id="singalong-list"><div style="color:var(--muted);font-size:13px;">載入中…</div></div></div>
+      <div class="section-body"><div id="singalong-first-list"><div style="color:var(--muted);font-size:13px;">載入中…</div></div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div class="section-head-title">清唱歌曲・第 2 順位排行 <span id="singalong-second-count" style="color:var(--muted);font-size:12px;font-weight:400;"></span></div>
+      </div>
+      <div class="section-body"><div id="singalong-second-list"><div style="color:var(--muted);font-size:13px;">載入中…</div></div></div>
     </div>
 
     <!-- FEEDBACK -->
@@ -534,7 +541,7 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>時間</th><th>集資金額%（場內）</th><th>集資金額%（場外）</th><th>場內排序</th><th>場外排序</th><th>場外活動</th><th>集資禮</th><th>清唱歌曲</th><th>其他意見</th></tr></thead>
+          <thead><tr><th>時間</th><th>集資金額%（場內）</th><th>集資金額%（場外）</th><th>場內排序</th><th>場外排序</th><th>場外活動</th><th>集資禮</th><th>清唱 1</th><th>清唱 2</th><th>其他意見</th></tr></thead>
           <tbody id="survey-tbody"></tbody>
         </table>
       </div>
@@ -701,7 +708,7 @@ function renderTable() {
  const filtered=allRegs.filter(r=>(!fd||r.date===fd)&&(!fs||r.status===fs));
  document.getElementById('reg-count').textContent='（'+filtered.length+' 筆）';
  const tbody=document.getElementById('reg-tbody');
- if(!filtered.length){tbody.innerHTML='<tr class="empty-row"><td colspan="9">尚無資料</td></tr>';return;}
+ if(!filtered.length){tbody.innerHTML='<tr class="empty-row"><td colspan="10">尚無資料</td></tr>';return;}
  tbody.innerHTML=filtered.map(r=>{
  const d=new Date(r.created_at);
  const ds=d.toLocaleString('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
@@ -944,14 +951,16 @@ async function loadSurvey() {
     document.getElementById('outdoor-result').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
     document.getElementById('outdoor-activity-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
     document.getElementById('crowdfund-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
-    document.getElementById('singalong-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
+    document.getElementById('singalong-first-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
+    document.getElementById('singalong-second-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
     document.getElementById('feedback-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回饋</div>';
     document.getElementById('outdoor-activity-count').textContent = '';
     document.getElementById('crowdfund-count').textContent = '';
-    document.getElementById('singalong-count').textContent = '';
+    document.getElementById('singalong-first-count').textContent = '';
+    document.getElementById('singalong-second-count').textContent = '';
     document.getElementById('feedback-count').textContent = '';
     document.getElementById('survey-count').textContent = '';
-    document.getElementById('survey-tbody').innerHTML = '<tr class="empty-row"><td colspan="9">尚無資料</td></tr>';
+    document.getElementById('survey-tbody').innerHTML = '<tr class="empty-row"><td colspan="10">尚無資料</td></tr>';
     return;
   }
 
@@ -1011,9 +1020,48 @@ async function loadSurvey() {
       : '<div style="color:var(--muted);font-size:13px;">' + emptyMsg + '</div>';
   }
 
+  // 統計清唱排行
+  function renderSingalongStats(data) {
+    function tally(field, containerId, countId) {
+      const counts = {};
+      data.forEach(r => {
+        const v = r[field];
+        if (v && String(v).trim()) counts[v] = (counts[v] || 0) + 1;
+      });
+      const entries = Object.entries(counts).sort((a,b) => b[1] - a[1]);
+      const total = entries.reduce((s, [, c]) => s + c, 0);
+      document.getElementById(countId).textContent = total ? '（' + total + ' 票）' : '';
+      if (!entries.length) {
+        document.getElementById(containerId).innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
+        return;
+      }
+      const max = entries[0][1];
+      document.getElementById(containerId).innerHTML = entries.map(([name, count], i) => {
+        const pct = ((count / total) * 100).toFixed(1);
+        const barW = ((count / max) * 100).toFixed(1);
+        const rank = i + 1;
+        const rankColor = rank === 1 ? '#5B9BD5' : rank === 2 ? '#7BA6DE' : rank === 3 ? '#9BB8E5' : '#cbd5e1';
+        return '<div style="margin-bottom:10px;font-size:13px;">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;">'
+          + '<span style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">'
+          + '<span style="display:inline-block;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:6px;background:' + rankColor + ';color:#fff;font-weight:600;font-size:12px;flex-shrink:0;">' + rank + '</span>'
+          + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + name + '</span>'
+          + '</span>'
+          + '<span style="color:#6b7280;font-size:12px;flex-shrink:0;">' + count + ' 票（' + pct + '%）</span>'
+          + '</div>'
+          + '<div style="height:6px;background:#f3f4f6;border-radius:3px;overflow:hidden;">'
+          + '<div style="width:' + barW + '%;height:100%;background:' + rankColor + ';"></div>'
+          + '</div>'
+          + '</div>';
+      }).join('');
+    }
+    tally('singalong_first', 'singalong-first-list', 'singalong-first-count');
+    tally('singalong_second', 'singalong-second-list', 'singalong-second-count');
+  }
+
   renderTextList('outdoor-activity-list', 'outdoor-activity-count', data, 'outdoor_activity', '尚無回覆');
   renderTextList('crowdfund-list', 'crowdfund-count', data, 'crowdfund_wish', '尚無回覆');
-  renderTextList('singalong-list', 'singalong-count', data, 'singalong_song', '尚無回覆');
+  renderSingalongStats(data);
   renderTextList('feedback-list', 'feedback-count', data, 'feedback', '尚無回饋意見');
 
   // Table
@@ -1028,7 +1076,8 @@ async function loadSurvey() {
       + '<td style="font-size:12px;">' + outdoor + '</td>'
       + '<td style="font-size:12px;color:#6b7280;">' + (r.outdoor_activity||'—') + '</td>'
       + '<td style="font-size:12px;color:#6b7280;">' + (r.crowdfund_wish||'—') + '</td>'
-      + '<td style="font-size:12px;color:#6b7280;">' + (r.singalong_song||'—') + '</td>'
+      + '<td style="font-size:12px;color:#6b7280;">' + (r.singalong_first||'—') + '</td>'
+      + '<td style="font-size:12px;color:#6b7280;">' + (r.singalong_second||'—') + '</td>'
       + '<td style="font-size:12px;color:#6b7280;">' + (r.feedback||'—') + '</td></tr>';
   }).join('');
 }

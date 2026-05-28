@@ -512,6 +512,13 @@
       <div class="section-body"><div id="crowdfund-list"><div style="color:var(--muted);font-size:13px;">載入中…</div></div></div>
     </div>
 
+    <div class="section">
+      <div class="section-head">
+        <div class="section-head-title">清唱歌曲 <span id="singalong-count" style="color:var(--muted);font-size:12px;font-weight:400;"></span></div>
+      </div>
+      <div class="section-body"><div id="singalong-list"><div style="color:var(--muted);font-size:13px;">載入中…</div></div></div>
+    </div>
+
     <!-- FEEDBACK -->
     <div class="section-card">
       <div class="section-head">
@@ -527,7 +534,7 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>時間</th><th>場內%</th><th>場外%</th><th>場內排序</th><th>場外排序</th><th>場外活動</th><th>集資禮</th><th>其他意見</th></tr></thead>
+          <thead><tr><th>時間</th><th>集資金額%（場內）</th><th>集資金額%（場外）</th><th>場內排序</th><th>場外排序</th><th>場外活動</th><th>集資禮</th><th>清唱歌曲</th><th>其他意見</th></tr></thead>
           <tbody id="survey-tbody"></tbody>
         </table>
       </div>
@@ -937,12 +944,14 @@ async function loadSurvey() {
     document.getElementById('outdoor-result').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
     document.getElementById('outdoor-activity-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
     document.getElementById('crowdfund-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
+    document.getElementById('singalong-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回覆</div>';
     document.getElementById('feedback-list').innerHTML = '<div style="color:var(--muted);font-size:13px;">尚無回饋</div>';
     document.getElementById('outdoor-activity-count').textContent = '';
     document.getElementById('crowdfund-count').textContent = '';
+    document.getElementById('singalong-count').textContent = '';
     document.getElementById('feedback-count').textContent = '';
     document.getElementById('survey-count').textContent = '';
-    document.getElementById('survey-tbody').innerHTML = '<tr class="empty-row"><td colspan="8">尚無資料</td></tr>';
+    document.getElementById('survey-tbody').innerHTML = '<tr class="empty-row"><td colspan="9">尚無資料</td></tr>';
     return;
   }
 
@@ -1004,6 +1013,7 @@ async function loadSurvey() {
 
   renderTextList('outdoor-activity-list', 'outdoor-activity-count', data, 'outdoor_activity', '尚無回覆');
   renderTextList('crowdfund-list', 'crowdfund-count', data, 'crowdfund_wish', '尚無回覆');
+  renderTextList('singalong-list', 'singalong-count', data, 'singalong_song', '尚無回覆');
   renderTextList('feedback-list', 'feedback-count', data, 'feedback', '尚無回饋意見');
 
   // Table
@@ -1018,6 +1028,7 @@ async function loadSurvey() {
       + '<td style="font-size:12px;">' + outdoor + '</td>'
       + '<td style="font-size:12px;color:#6b7280;">' + (r.outdoor_activity||'—') + '</td>'
       + '<td style="font-size:12px;color:#6b7280;">' + (r.crowdfund_wish||'—') + '</td>'
+      + '<td style="font-size:12px;color:#6b7280;">' + (r.singalong_song||'—') + '</td>'
       + '<td style="font-size:12px;color:#6b7280;">' + (r.feedback||'—') + '</td></tr>';
   }).join('');
 }

@@ -212,6 +212,36 @@
 
  /* LOGOUT BTN */
  .logout-btn{display:flex;align-items:center;gap:6px;padding:7px 14px;background:#f3f4f6;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;font-family:inherit;cursor:pointer;transition:all 0.15s;}
+
+ /* QUICK JUMP */
+ .quick-jump{position:relative;display:inline-block;}
+ .quick-jump-trigger{
+  background:#f3f4f6;border:1px solid var(--border);color:var(--text);
+  font-size:13px;padding:7px 12px;border-radius:8px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;font-family:inherit;
+  transition:all 0.15s;
+ }
+ .quick-jump-trigger:hover{background:#e5e7eb;}
+ .quick-jump-trigger svg{width:9px;height:9px;}
+ .quick-jump-panel{
+  position:absolute;top:calc(100% + 6px);right:0;min-width:240px;
+  background:#fff;border:1px solid var(--border);border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.1);padding:6px;display:none;z-index:1000;
+ }
+ .quick-jump-panel.show{display:block;}
+ .quick-jump-group{padding:4px 0;}
+ .quick-jump-group + .quick-jump-group{border-top:1px solid #f1f5f9;margin-top:2px;padding-top:6px;}
+ .quick-jump-label{
+  font-size:10px;color:var(--muted);padding:4px 10px;
+  text-transform:uppercase;letter-spacing:0.5px;font-weight:500;
+ }
+ .quick-jump-item{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;
+  border-radius:6px;text-decoration:none;color:var(--text);font-size:13px;
+ }
+ .quick-jump-item:hover{background:#f8fafc;}
+ .quick-jump-icon{font-size:14px;width:18px;text-align:center;}
+ .quick-jump-arrow{margin-left:auto;opacity:0.4;font-size:11px;}
  .logout-btn:hover{border-color:var(--danger);color:var(--danger);}
 
  @media(max-width:768px){
@@ -614,6 +644,79 @@
 </div>
 
 <script>
+// === QUICK JUMP ===
+const QUICK_JUMP_LINKS = [
+ { group: '前端網站', items: [
+  { icon: '🏠', label: '主網站 / 報名', url: 'https://taiwanfimily.netlify.app' },
+  { icon: '📊', label: '應援意願調查', url: 'https://taiwanfimily.netlify.app/survey.html' },
+  { icon: '🎮', label: '遊戲中心', url: 'https://taiwanfimily-game.netlify.app' },
+ ]},
+ { group: '管理工具', items: [
+  { icon: '🔧', label: '管理員後台', url: 'https://taiwanfimily-admin.netlify.app' },
+  { icon: '🗄️', label: 'Supabase', url: 'https://supabase.com/dashboard' },
+  { icon: '🌐', label: 'Netlify', url: 'https://app.netlify.com' },
+  { icon: '💻', label: 'GitHub', url: 'https://github.com' },
+ ]}
+];
+
+function createQuickJumpHTML() {
+ return `<div class="quick-jump">
+  <button class="quick-jump-trigger" onclick="toggleQuickJump(event)">
+   <span>跳轉</span>
+   <svg viewBox="0 0 10 10" fill="currentColor"><path d="M2 4l3 3 3-3z"/></svg>
+  </button>
+  <div class="quick-jump-panel">
+   ${QUICK_JUMP_LINKS.map(g => `
+    <div class="quick-jump-group">
+     <div class="quick-jump-label">${g.group}</div>
+     ${g.items.map(i => `
+      <a class="quick-jump-item" href="${i.url}" target="_blank" rel="noopener">
+       <span class="quick-jump-icon">${i.icon}</span>
+       <span>${i.label}</span>
+       <span class="quick-jump-arrow">↗</span>
+      </a>
+     `).join('')}
+    </div>
+   `).join('')}
+  </div>
+ </div>`;
+}
+
+function toggleQuickJump(e) {
+ e.stopPropagation();
+ const panel = e.currentTarget.parentElement.querySelector('.quick-jump-panel');
+ document.querySelectorAll('.quick-jump-panel.show').forEach(p => {
+  if (p !== panel) p.classList.remove('show');
+ });
+ panel.classList.toggle('show');
+}
+
+document.addEventListener('click', () => {
+ document.querySelectorAll('.quick-jump-panel.show').forEach(p => p.classList.remove('show'));
+});
+
+function injectQuickJump() {
+ // home-nav: 插在 logout-btn 前
+ const homeNav = document.querySelector('.home-nav');
+ if (homeNav && !homeNav.querySelector('.quick-jump')) {
+  const logout = homeNav.querySelector('.logout-btn');
+  if (logout) {
+   logout.insertAdjacentHTML('beforebegin', createQuickJumpHTML());
+  }
+ }
+ // sub-nav: 插在右側按鈕區最前面
+ document.querySelectorAll('.sub-nav').forEach(nav => {
+  if (nav.querySelector('.quick-jump')) return;
+  const right = nav.querySelector('.sub-nav-left + div');
+  if (right) {
+   right.insertAdjacentHTML('afterbegin', createQuickJumpHTML());
+  }
+ });
+}
+
+document.addEventListener('DOMContentLoaded', injectQuickJump);
+setTimeout(injectQuickJump, 200);
+
 const SUPABASE_URL = 'https://gexcoudliocybhmlziss.supabase.co';
 const SUPABASE_KEY = 'sb_publishable__XRn__8TPSQdQYJxmCDl2g_JukRY7DE';
 const ADMIN_EMAIL = 'thisisccy@gmail.com';

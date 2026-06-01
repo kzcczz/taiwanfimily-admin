@@ -361,6 +361,7 @@
  <div class="stat-card"><div class="stat-label">總報名筆數</div><div class="stat-value" id="stat-total">—</div></div>
  <div class="stat-card"><div class="stat-label">待確認</div><div class="stat-value" style="color:var(--warning);" id="stat-pending">—</div></div>
  <div class="stat-card"><div class="stat-label">已付款</div><div class="stat-value" style="color:var(--success);" id="stat-paid">—</div></div>
+ <div class="stat-card"><div class="stat-label">已付款總金額</div><div class="stat-value" style="color:var(--success);font-size:24px;" id="stat-paid-amount">—</div></div>
  <div class="stat-card"><div class="stat-label">展覽 4/30 人數</div><div class="stat-value" style="color:var(--blue);" id="stat-d0">—</div></div>
  <div class="stat-card"><div class="stat-label">展覽 5/1 人數</div><div class="stat-value" style="color:var(--blue);" id="stat-d1">—</div></div>
  <div class="stat-card"><div class="stat-label">展覽 5/2 人數</div><div class="stat-value" style="color:var(--blue);" id="stat-d2">—</div></div>
@@ -847,6 +848,8 @@ async function loadRegistrations() {
  document.getElementById('stat-total').textContent=allRegs.length;
  document.getElementById('stat-pending').textContent=allRegs.filter(r=>(r.status||'待確認')==='待確認').length;
  document.getElementById('stat-paid').textContent=allRegs.filter(r=>r.status==='已付款').length;
+ const paidAmount=allRegs.filter(r=>r.status==='已付款').reduce((s,r)=>s+(parseInt(r.amount)||0),0);
+ document.getElementById('stat-paid-amount').textContent='NT$'+paidAmount.toLocaleString();
  document.getElementById('stat-d0').textContent=exhibRegs.filter(r=>r.date&&r.date.includes('4/30')).reduce((s,r)=>s+(parseInt(r.people)||0),0);
  document.getElementById('stat-d1').textContent=exhibRegs.filter(r=>r.date&&r.date.includes('5/1')).reduce((s,r)=>s+(parseInt(r.people)||0),0);
  document.getElementById('stat-d2').textContent=exhibRegs.filter(r=>r.date&&r.date.includes('5/2')).reduce((s,r)=>s+(parseInt(r.people)||0),0);

@@ -43,7 +43,7 @@
  .login-error{font-size:13px;color:var(--danger);margin-top:0.75rem;padding:10px 14px;background:rgba(231,76,60,0.08);border-radius:8px;display:none;}
  .login-error.show{display:block;}
 
- /* ===== HOME (Netflix style) ===== */
+ /* ===== HOME ===== */
  #home-screen{display:none;min-height:100vh;}
  .home-nav{
  padding:1.25rem 2rem;display:flex;align-items:center;justify-content:space-between;
@@ -51,42 +51,51 @@
  }
  .home-nav-logo img{height:14px;width:auto;}
  .home-hero{
- padding:3rem 2rem 2rem;text-align:center;
- background:linear-gradient(180deg,rgba(37,99,235,0.04) 0%,transparent 100%);
+ padding:3.5rem 2rem 2.5rem;text-align:center;
  }
- .home-hero-sub{font-size:11px;letter-spacing:0.25em;color:var(--blue);margin-bottom:0.75rem;}
- .home-hero-title{font-size:clamp(28px,5vw,48px);font-weight:900;letter-spacing:0.04em;margin-bottom:0.5rem;color:var(--text);}
+ .home-hero-sub{font-size:11px;letter-spacing:0.3em;color:var(--blue);margin-bottom:0.85rem;font-weight:600;}
+ .home-hero-title{font-size:clamp(28px,5vw,46px);font-weight:900;letter-spacing:0.04em;margin-bottom:0.6rem;color:var(--text);}
  .home-hero-desc{font-size:14px;color:var(--muted);}
  .home-cards{
- display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
- gap:20px;padding:2rem;max-width:1000px;margin:0 auto;
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+ gap:22px;padding:1rem 2rem 3.5rem;max-width:1080px;margin:0 auto;
  }
  .home-card{
- background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
- padding:2rem;cursor:pointer;transition:all 0.25s;position:relative;overflow:hidden;
- text-align:left;
+ background:var(--bg2);border:1px solid var(--border);border-radius:16px;
+ padding:1.75rem 1.75rem 3.25rem;cursor:pointer;
+ transition:transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+ position:relative;overflow:hidden;text-align:left;
+ box-shadow:0 1px 2px rgba(16,24,40,0.04);
  }
+ /* 常駐頂部彩色條 */
  .home-card::before{
- content:'';position:absolute;top:0;left:0;right:0;height:3px;
- opacity:0;transition:opacity 0.25s;
+ content:'';position:absolute;top:0;left:0;right:0;height:4px;
+ background:var(--blue);opacity:1;transition:opacity 0.2s;
  }
- .home-card:hover{border-color:rgba(91,155,213,0.5);transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,0.4);}
- .home-card:hover::before{opacity:1;}
+ .home-card:hover{
+ transform:translateY(-3px);
+ border-color:rgba(91,155,213,0.45);
+ box-shadow:0 12px 28px rgba(37,99,235,0.12), 0 2px 6px rgba(16,24,40,0.06);
+ }
  .home-card.card-reg::before{background:linear-gradient(90deg,#5B9BD5,#7BB3D8);}
  .home-card.card-game::before{background:linear-gradient(90deg,#FF9A3C,#FFD966);}
  .home-card.card-site::before{background:linear-gradient(90deg,#B19CD9,#5B9BD5);}
  .home-card.card-venue::before{background:linear-gradient(90deg,#5B9BD5,#3A7BB8);}
- .home-card.card-disabled{opacity:0.45;cursor:not-allowed;}
- .home-card.card-disabled:hover{transform:none;box-shadow:none;border-color:var(--border);}
- .home-card.card-disabled:hover::before{opacity:0;}
- .card-icon{font-size:36px;margin-bottom:1rem;}
- .card-title{font-size:20px;font-weight:700;margin-bottom:0.5rem;}
- .card-desc{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:1.25rem;}
- .card-items{display:flex;flex-wrap:wrap;gap:6px;}
- .card-tag{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;background:#f0f7ff;color:var(--blue);}
- .card-arrow{position:absolute;bottom:1.5rem;right:1.5rem;font-size:18px;color:var(--muted);transition:all 0.2s;}
+ .home-card.card-survey::before{background:linear-gradient(90deg,#10b981,#34d399);}
+ .home-card.card-disabled{opacity:0.55;cursor:not-allowed;background:#fafbfc;}
+ .home-card.card-disabled::before{background:var(--border);}
+ .home-card.card-disabled:hover{transform:none;box-shadow:0 1px 2px rgba(16,24,40,0.04);border-color:var(--border);}
+ .card-title{font-size:19px;font-weight:800;margin-bottom:0.5rem;color:var(--text);letter-spacing:0.01em;}
+ .card-desc{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:1.1rem;}
+ .card-items{display:flex;flex-wrap:wrap;gap:7px;}
+ .card-tag{padding:4px 11px;border-radius:7px;font-size:11px;font-weight:600;background:var(--blue-light);color:var(--blue-dark);}
+ .home-card.card-disabled .card-tag{background:#eef0f2;color:#9ca3af;}
+ .card-arrow{
+ position:absolute;bottom:1.4rem;right:1.6rem;font-size:18px;color:#c2c9d2;
+ transition:color 0.2s, transform 0.2s;
+ }
  .home-card:hover .card-arrow{color:var(--blue);transform:translate(3px,-3px);}
- .coming-tag{position:absolute;top:14px;right:14px;font-size:10px;letter-spacing:0.1em;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:2px 8px;}
+ .coming-tag{position:absolute;top:16px;right:16px;font-size:10px;letter-spacing:0.12em;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:3px 9px;font-weight:600;}
 
  /* ===== SUB PAGES ===== */
  .sub-page{display:none;min-height:100vh;}
@@ -286,9 +295,7 @@
  <div class="home-hero-desc">選擇要管理的區域</div>
  </div>
  <div class="home-cards">
- <div class="home-card card-reg" onclick="showPage('reg-page')">
- <div class="card-icon"></div>
- <div class="card-title">展覽報名後台</div>
+ <div class="home-card card-reg" onclick="showPage('reg-page')"> <div class="card-title">展覽報名後台</div>
  <div class="card-desc">管理五週年展覽報名資料、時段名額與報名統計</div>
  <div class="card-items">
  <span class="card-tag">總覽統計</span>
@@ -298,9 +305,7 @@
  </div>
  <div class="card-arrow"></div>
  </div>
- <div class="home-card card-game" onclick="showPage('game-page')">
- <div class="card-icon"></div>
- <div class="card-title">遊戲管理</div>
+ <div class="home-card card-game" onclick="showPage('game-page')"> <div class="card-title">遊戲管理</div>
  <div class="card-desc">管理踩地雷題庫、查看拼圖與踩地雷排行榜</div>
  <div class="card-items">
  <span class="card-tag">題庫管理</span>
@@ -309,7 +314,7 @@
  </div>
  <div class="card-arrow"></div>
  </div>
- <div class="home-card" onclick="showPage('survey-page')" style="border-top:3px solid #059669;cursor:pointer;">
+ <div class="home-card card-survey" onclick="showPage('survey-page')">
  <div class="card-title">應援調查後台</div>
  <div class="card-desc">查看演唱會應援意願調查的回覆結果與統計</div>
  <div class="card-items">
@@ -319,9 +324,7 @@
  </div>
  <div class="card-arrow">↗</div>
  </div>
- <div class="home-card card-venue" onclick="window.location.href='venue.html'">
- <div class="card-icon"></div>
- <div class="card-title">場地規劃工具</div>
+ <div class="home-card card-venue" onclick="window.location.href='venue.html'"> <div class="card-title">場地規劃工具</div>
  <div class="card-desc">線上規劃 25 坪場地分區、動線與展位配置,可繪製、標記、多人即時同步</div>
  <div class="card-items">
  <span class="card-tag">平面圖標記</span>
@@ -332,9 +335,7 @@
  <div class="card-arrow">→</div>
  </div>
  <div class="home-card card-site card-disabled">
- <div class="coming-tag">COMING SOON</div>
- <div class="card-icon"></div>
- <div class="card-title">主網站管理</div>
+ <div class="coming-tag">COMING SOON</div> <div class="card-title">主網站管理</div>
  <div class="card-desc">管理活動消息、應援法等主網站內容</div>
  <div class="card-items">
  <span class="card-tag">活動消息</span>

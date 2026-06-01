@@ -223,13 +223,16 @@
  /* QUICK JUMP */
  .quick-jump{position:relative;display:inline-block;}
  .quick-jump-trigger{
-  background:#f3f4f6;border:1px solid var(--border);color:var(--text);
-  font-size:13px;padding:7px 12px;border-radius:8px;cursor:pointer;
-  display:inline-flex;align-items:center;gap:6px;font-family:inherit;
-  transition:all 0.15s;
+  background:var(--blue);border:1px solid var(--blue);color:#fff;
+  font-size:14px;font-weight:600;padding:9px 18px;border-radius:9px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:8px;font-family:inherit;
+  box-shadow:0 1px 2px rgba(37,99,235,0.25);
+  transition:background 0.15s, box-shadow 0.15s, transform 0.1s;
  }
- .quick-jump-trigger:hover{background:#e5e7eb;}
- .quick-jump-trigger svg{width:9px;height:9px;}
+ .quick-jump-trigger:hover{background:var(--blue-dark);box-shadow:0 4px 12px rgba(37,99,235,0.3);}
+ .quick-jump-trigger:active{transform:translateY(1px);}
+ .quick-jump-trigger svg{width:11px;height:11px;transition:transform 0.2s;}
+ .quick-jump.open .quick-jump-trigger svg{transform:rotate(180deg);}
  .quick-jump-panel{
   position:absolute;top:calc(100% + 6px);right:0;min-width:240px;
   background:#fff;border:1px solid var(--border);border-radius:10px;
@@ -666,7 +669,7 @@ const QUICK_JUMP_LINKS = [
 function createQuickJumpHTML() {
  return `<div class="quick-jump">
   <button class="quick-jump-trigger" onclick="toggleQuickJump(event)">
-   <span>跳轉</span>
+   <span>快速前往</span>
    <svg viewBox="0 0 10 10" fill="currentColor"><path d="M2 4l3 3 3-3z"/></svg>
   </button>
   <div class="quick-jump-panel">
@@ -686,15 +689,20 @@ function createQuickJumpHTML() {
 
 function toggleQuickJump(e) {
  e.stopPropagation();
- const panel = e.currentTarget.parentElement.querySelector('.quick-jump-panel');
+ const wrap = e.currentTarget.parentElement;
+ const panel = wrap.querySelector('.quick-jump-panel');
  document.querySelectorAll('.quick-jump-panel.show').forEach(p => {
-  if (p !== panel) p.classList.remove('show');
+  if (p !== panel) { p.classList.remove('show'); p.parentElement.classList.remove('open'); }
  });
- panel.classList.toggle('show');
+ const isOpen = panel.classList.toggle('show');
+ wrap.classList.toggle('open', isOpen);
 }
 
 document.addEventListener('click', () => {
- document.querySelectorAll('.quick-jump-panel.show').forEach(p => p.classList.remove('show'));
+ document.querySelectorAll('.quick-jump-panel.show').forEach(p => {
+  p.classList.remove('show');
+  p.parentElement.classList.remove('open');
+ });
 });
 
 function injectQuickJump() {

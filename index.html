@@ -378,8 +378,7 @@
  </div>
  <div class="section-body">
  <div class="chart-tabs" style="margin-bottom:1.25rem;">
- <button class="chart-tab active" onclick="switchChart('all',event)">全部</button>
- <button class="chart-tab" onclick="switchChart('d0',event)">4/30（五）</button>
+ <button class="chart-tab active" onclick="switchChart('d0',event)">4/30（五）</button>
  <button class="chart-tab" onclick="switchChart('d1',event)">5/1（六）</button>
  <button class="chart-tab" onclick="switchChart('d2',event)">5/2（日）</button>
  </div>
@@ -730,7 +729,7 @@ const ADMIN_EMAIL = 'thisisccy@gmail.com';
 
 let accessToken = null;
 let allRegs = [], chartData = [];
-let currentChartFilter = 'all';
+let currentChartFilter = 'd0';
 let puzzleLbMode = 'time';
 let mineLbFilter = 'all';
 
@@ -981,22 +980,17 @@ function switchChart(f,e) {
 
 function renderChart() {
  const chart=document.getElementById('bar-chart');
- let filtered=chartData;
+ let filtered=[];
  if(currentChartFilter==='d0') filtered=chartData.filter(s=>s.date.includes('4/30'));
- if(currentChartFilter==='d1') filtered=chartData.filter(s=>s.date.includes('5/1'));
- if(currentChartFilter==='d2') filtered=chartData.filter(s=>s.date.includes('5/2'));
+ else if(currentChartFilter==='d1') filtered=chartData.filter(s=>s.date.includes('5/1'));
+ else if(currentChartFilter==='d2') filtered=chartData.filter(s=>s.date.includes('5/2'));
  if(!filtered.length){chart.innerHTML='<div style="color:var(--muted);font-size:14px;">無資料</div>';return;}
  chart.innerHTML=filtered.map(slot=>{
  const pct=Math.round((slot.booked/slot.capacity)*100);
  let cls='bar-low';
  if(pct>=100)cls='bar-full';else if(pct>=70)cls='bar-high';else if(pct>=30)cls='bar-mid';
- let dateTag = '';
- if (currentChartFilter==='all') {
-  const short = slot.date.includes('4/30') ? '五' : slot.date.includes('5/1') ? '六' : '日';
-  dateTag = `<span style="font-size:10px;color:var(--muted);margin-left:3px;">${short}</span>`;
- }
  return `<div class="bar-row">
- <div class="bar-label">${slot.time.split('–')[0]}${dateTag}</div>
+ <div class="bar-label">${slot.time.split('–')[0]}</div>
  <div class="bar-track"><div class="bar-fill ${cls}" style="width:${Math.max(pct,0)}%">${pct>=20?`<span class="bar-fill-label">${pct}%</span>`:''}</div></div>
  <div class="bar-count">${slot.booked}<span style="color:var(--muted);font-weight:400;">/${slot.capacity}</span></div>
  </div>`;

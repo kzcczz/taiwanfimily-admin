@@ -389,7 +389,14 @@
 
  <div class="section-card">
  <div class="section-head"><div class="section-head-title"> 時段名額管理</div></div>
- <div class="section-body"><div id="slots-grid"><div style="color:var(--muted);font-size:14px;"><span class="spinner"></span> 載入中…</div></div></div>
+ <div class="section-body">
+ <div class="chart-tabs" style="margin-bottom:1.25rem;">
+ <button class="chart-tab active" id="slots-tab-d0" onclick="switchSlots('4/30',event)">4/30（五）</button>
+ <button class="chart-tab" id="slots-tab-d1" onclick="switchSlots('5/1',event)">5/1（六）</button>
+ <button class="chart-tab" id="slots-tab-d2" onclick="switchSlots('5/2',event)">5/2（日）</button>
+ </div>
+ <div id="slots-grid"><div style="color:var(--muted);font-size:14px;"><span class="spinner"></span> 載入中…</div></div>
+ </div>
  </div>
 
  <div class="section-card">
@@ -784,15 +791,26 @@ async function loadReg() {
  await Promise.all([loadSlots(), loadRegistrations(), loadChart(), loadNightSlots()]);
 }
 
+let slotsData = [];
+let currentSlotsDate = '4/30';
+
 async function loadSlots() {
- const data = await sbFetch('/rest/v1/slots?select=*&order=date,time');
+ slotsData = await sbFetch('/rest/v1/slots?select=*&order=date,time') || [];
+ renderSlotsGrid();
+}
+
+function switchSlots(d, event) {
+ currentSlotsDate = d;
+ document.querySelectorAll('[id^="slots-tab-"]').forEach(t=>t.classList.remove('active'));
+ if (event && event.target) event.target.classList.add('active');
+ renderSlotsGrid();
+}
+
+function renderSlotsGrid() {
  const grid = document.getElementById('slots-grid');
- if(!data||!data.length){grid.innerHTML='<div style="color:var(--muted)">無資料</div>';return;}
- const groups = {};
- data.forEach(s => {
-  if (!groups[s.date]) groups[s.date] = [];
-  groups[s.date].push(s);
- });
+ if(!slotsData||!slotsData.length){grid.innerHTML='<div style="color:var(--muted)">無資料</div>';return;}
+ const filtered = slotsData.filter(s => s.date && s.date.includes(currentSlotsDate));
+ if(!filtered.length){grid.innerHTML='<div style="color:var(--muted);font-size:14px;">此日期無時段</div>';return;}
  function renderSlots(slots){
  return slots.map(slot=>{
  const rem=slot.capacity-slot.booked, isFull=rem<=0;
@@ -807,9 +825,8 @@ async function loadSlots() {
  </div>`;
  }).join('');
  }
- grid.innerHTML = Object.keys(groups).sort().map(date =>
-  `<div class="slots-date-group"><div class="slots-date-title">${date}</div><div class="slots-subgrid">${renderSlots(groups[date])}</div></div>`
- ).join('');
+ const dateLabel = filtered[0].date;
+ grid.innerHTML = `<div class="slots-date-group"><div class="slots-date-title">${dateLabel}</div><div class="slots-subgrid">${renderSlots(filtered)}</div></div>`;
 }
 
 async function saveSlot(id) {

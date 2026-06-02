@@ -192,6 +192,7 @@
  /* QUIZ */
  .quiz-item{background:#f9fafb;border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;border:1px solid var(--border);}
  .quiz-item-q{font-weight:500;margin-bottom:6px;}
+ .quiz-num{color:var(--blue);font-weight:700;margin-right:2px;}
  .quiz-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
  .quiz-tag-opt{padding:2px 8px;border-radius:12px;font-size:11px;background:#f3f4f6;color:var(--muted);}
  .quiz-tag-opt.correct{background:rgba(39,174,96,0.15);color:var(--success);}
@@ -1183,10 +1184,9 @@ async function deleteQuiz(id) {
  if(!res.ok){ alert('刪除失敗：'+res.error); return; }
  const n = Array.isArray(res.data) ? res.data.length : '?';
  if(n===0){
-   alert('伺服器回應成功，但實際刪除 0 筆。\n\n代表 RLS 的 DELETE 條件擋住了這筆，或 id 對不上。\nid='+id);
+   alert('伺服器回應成功，但實際刪除 0 筆（RLS 條件擋住或 id 對不上）。');
    return;
  }
- alert('已刪除 '+n+' 筆。');
  loadQuizList();
 }
 
@@ -1212,21 +1212,26 @@ async function saveQuiz(id) {
  const safeQ=q.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
  const safeOpts=opts.map(o=>String(o).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
  const qv=document.getElementById('qv-'+id);
- qv.querySelector('.quiz-item-q').textContent=q;
+ const qEl=qv.querySelector('.quiz-item-q');
+ const numEl=qEl.querySelector('.quiz-num');
+ const num=numEl?numEl.outerHTML:'';
+ qEl.innerHTML=num+' '+safeQ;
  qv.querySelector('.quiz-tags').innerHTML=safeOpts.map((o,i)=>'<span class="quiz-tag-opt'+(i===ans?' correct':'')+'">'+labels[i]+': '+o+'</span>').join('');
  cancelEdit(id);
 }
 
 async function loadQuizList() {
-  const data=await sbFetch('/rest/v1/quiz_questions?select=id,question,options,answer&order=created_at.asc',{},SUPABASE_KEY);
+  const data=await sbFetch('/rest/v1/quiz_questions?select=id,question,options,answer,created_at&order=created_at.asc,id.asc',{},SUPABASE_KEY);
   const el=document.getElementById('quiz-list');
   const cnt=document.getElementById('quiz-count');
   if(!data||!data.length){el.innerHTML='<div style="color:var(--muted);font-size:13px;">還沒有題目</div>';cnt.textContent='';return;}
   cnt.textContent='（'+data.length+' 題）';
   const labels=['A','B','C','D'];
   const items=[];
+  let seq=0;
   for(const r of data){
     try{
+      seq++;
       // jsonb from Supabase comes as array already
       const opts = Array.isArray(r.options) ? r.options : (typeof r.options==='string' ? JSON.parse(r.options) : r.options);
       const safeQ=(r.question||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1236,7 +1241,7 @@ async function loadQuizList() {
       div.className='quiz-item';
       div.innerHTML=
         '<div id="qv-'+rid+'">'
-        +'<div class="quiz-item-q">'+safeQ+'</div>'
+        +'<div class="quiz-item-q"><span class="quiz-num">'+seq+'.</span> '+safeQ+'</div>'
         +'<div class="quiz-tags">'+safeOpts.map((o,i)=>'<span class="quiz-tag-opt'+(i===r.answer?' correct':'')+'">'+labels[i]+': '+o+'</span>').join('')+'</div>'
         +'<div class="quiz-actions">'
         +'<button class="btn btn-sm btn-ghost" data-action="edit" data-id="'+rid+'">編輯</button> '

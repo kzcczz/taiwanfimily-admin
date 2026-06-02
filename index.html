@@ -760,6 +760,54 @@ async function sbFetch(path, opts={}, token=null) {
  try{return await r.json();}catch{return [];}
 }
 
+// 用 refresh token 換新的 access token
+async function refreshSession() {
+ const refresh = sessionStorage.getItem('tf_refresh');
+ if(!refresh) return false;
+ try {
+   const r = await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token', {
+     method:'POST', headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},
+     body:JSON.stringify({refresh_token:refresh})
+   });
+   const d = await r.json();
+   if(d.access_token){
+     accessToken = d.access_token;
+     sessionStorage.setItem('tf_token', accessToken);
+     if(d.refresh_token) sessionStorage.setItem('tf_refresh', d.refresh_token);
+     const ttl = (d.expires_in ? d.expires_in*1000 : 30*60*1000);
+     sessionStorage.setItem('tf_expiry', Date.now()+ttl);
+     return true;
+   }
+ } catch(e){}
+ return false;
+}
+
+// 寫入專用：回傳 {ok, status, error}，不吞錯；401 時自動刷新並重試一次
+async function sbWrite(path, opts={}, _retried=false) {
+ if(!accessToken){
+   return {ok:false, status:401, error:'尚未登入或登入已過期，請重新登入'};
+ }
+ let r;
+ try {
+   r = await fetch(SUPABASE_URL+path, {...opts, headers: {'apikey':SUPABASE_KEY,'Authorization':'Bearer '+accessToken,'Content-Type':'application/json',...(opts.headers||{})} });
+ } catch(e) {
+   return {ok:false, status:0, error:'網路錯誤：'+e.message};
+ }
+ if(r.ok) return {ok:true, status:r.status};
+ // token 過期 → 刷新後重試一次
+ if((r.status===401||r.status===403) && !_retried){
+   const ok = await refreshSession();
+   if(ok) return sbWrite(path, opts, true);
+ }
+ let msg='';
+ try { const j=await r.json(); msg=j.message||j.error||j.hint||JSON.stringify(j); }
+ catch { try{ msg=await r.text(); }catch{ msg=''; } }
+ if(r.status===401||r.status===403){
+   msg='登入已過期或沒有權限，請重新登入。'+(msg?('（'+msg+'）'):'');
+ }
+ return {ok:false, status:r.status, error:msg||('HTTP '+r.status)};
+}
+
 // AUTH
 async function doLogin() {
  const email = document.getElementById('login-email').value.trim();
@@ -775,7 +823,10 @@ async function doLogin() {
  if(data.access_token) {
  accessToken = data.access_token;
  sessionStorage.setItem('tf_token', accessToken);
- sessionStorage.setItem('tf_expiry', Date.now()+30*60*1000);
+ if(data.refresh_token) sessionStorage.setItem('tf_refresh', data.refresh_token);
+ // 用 token 實際到期時間（expires_in 秒），保守提早 60 秒
+ const ttl = (data.expires_in ? data.expires_in*1000 : 30*60*1000);
+ sessionStorage.setItem('tf_expiry', Date.now()+ttl);
  document.getElementById('login-screen').style.display='none';
  showHome();
  } else {
@@ -787,6 +838,7 @@ async function doLogin() {
 function doLogout() {
  accessToken=null;
  sessionStorage.removeItem('tf_token');
+ sessionStorage.removeItem('tf_refresh');
  sessionStorage.removeItem('tf_expiry');
  document.getElementById('login-screen').style.display='flex';
  document.getElementById('home-screen').style.display='none';
@@ -1107,7 +1159,8 @@ async function addQuiz() {
  const opts=[0,1,2,3].map(i=>document.getElementById('quiz-opt'+i).value.trim());
  const ans=parseInt(document.getElementById('quiz-ans').value);
  if(!q||opts.some(o=>!o)){alert('請填寫題目和所有選項！');return;}
- await sbFetch('/rest/v1/quiz_questions',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({question:q,options:opts,answer:ans})}, accessToken);
+ const res=await sbWrite('/rest/v1/quiz_questions',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({question:q,options:opts,answer:ans})});
+ if(!res.ok){ alert('新增失敗：'+res.error); return; }
  document.getElementById('quiz-q').value='';
  [0,1,2,3].forEach(i=>document.getElementById('quiz-opt'+i).value='');
  const s=document.getElementById('quiz-status');
@@ -1117,7 +1170,8 @@ async function addQuiz() {
 
 async function deleteQuiz(id) {
  if(!confirm('確定要刪除這題嗎？'))return;
- await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'DELETE'}, accessToken);
+ const res=await sbWrite('/rest/v1/quiz_questions?id=eq.'+id,{method:'DELETE'});
+ if(!res.ok){ alert('刪除失敗：'+res.error); return; }
  loadQuizList();
 }
 
@@ -1136,7 +1190,8 @@ async function saveQuiz(id) {
  const opts=[0,1,2,3].map(i=>document.getElementById('eq-o'+i+'-'+id).value.trim());
  const ans=parseInt(document.getElementById('eq-a-'+id).value);
  if(!q||opts.some(o=>!o)){alert('請填寫所有欄位！');return;}
- await sbFetch('/rest/v1/quiz_questions?id=eq.'+id,{method:'PATCH',body:JSON.stringify({question:q,options:opts,answer:ans})}, accessToken);
+ const res=await sbWrite('/rest/v1/quiz_questions?id=eq.'+id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({question:q,options:opts,answer:ans})});
+ if(!res.ok){ alert('儲存失敗：'+res.error); return; }
  // Update view inline without reloading list
  const labels=['A','B','C','D'];
  const safeQ=q.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1373,13 +1428,21 @@ async function confirmSurveyClear() {
 }
 
 // AUTO LOGIN
-(function(){
+(async function(){
  const token=sessionStorage.getItem('tf_token');
+ const refresh=sessionStorage.getItem('tf_refresh');
  const expiry=parseInt(sessionStorage.getItem('tf_expiry')||'0');
  if(token&&Date.now()<expiry){
- accessToken=token;
- document.getElementById('login-screen').style.display='none';
- showHome();
+   accessToken=token;
+   document.getElementById('login-screen').style.display='none';
+   showHome();
+ } else if(refresh){
+   // access token 過期，但有 refresh token → 嘗試刷新
+   const ok=await refreshSession();
+   if(ok){
+     document.getElementById('login-screen').style.display='none';
+     showHome();
+   }
  }
 })();
 </script>

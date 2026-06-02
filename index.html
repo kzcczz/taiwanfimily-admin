@@ -793,7 +793,11 @@ async function sbWrite(path, opts={}, _retried=false) {
  } catch(e) {
    return {ok:false, status:0, error:'網路錯誤：'+e.message};
  }
- if(r.ok) return {ok:true, status:r.status};
+ if(r.ok){
+   let data=null;
+   try{ data=await r.json(); }catch{ data=null; }
+   return {ok:true, status:r.status, data:data};
+ }
  // token 過期 → 刷新後重試一次
  if((r.status===401||r.status===403) && !_retried){
    const ok = await refreshSession();
@@ -1159,8 +1163,13 @@ async function addQuiz() {
  const opts=[0,1,2,3].map(i=>document.getElementById('quiz-opt'+i).value.trim());
  const ans=parseInt(document.getElementById('quiz-ans').value);
  if(!q||opts.some(o=>!o)){alert('請填寫題目和所有選項！');return;}
- const res=await sbWrite('/rest/v1/quiz_questions',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify({question:q,options:opts,answer:ans})});
+ const res=await sbWrite('/rest/v1/quiz_questions',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({question:q,options:opts,answer:ans})});
  if(!res.ok){ alert('新增失敗：'+res.error); return; }
+ const n = Array.isArray(res.data) ? res.data.length : '?';
+ if(n===0){
+   alert('伺服器回應成功，但實際新增 0 筆。\n\n代表 RLS 的 INSERT 條件擋住了這筆。');
+   return;
+ }
  document.getElementById('quiz-q').value='';
  [0,1,2,3].forEach(i=>document.getElementById('quiz-opt'+i).value='');
  const s=document.getElementById('quiz-status');
@@ -1170,8 +1179,14 @@ async function addQuiz() {
 
 async function deleteQuiz(id) {
  if(!confirm('確定要刪除這題嗎？'))return;
- const res=await sbWrite('/rest/v1/quiz_questions?id=eq.'+id,{method:'DELETE'});
+ const res=await sbWrite('/rest/v1/quiz_questions?id=eq.'+id,{method:'DELETE',headers:{'Prefer':'return=representation'}});
  if(!res.ok){ alert('刪除失敗：'+res.error); return; }
+ const n = Array.isArray(res.data) ? res.data.length : '?';
+ if(n===0){
+   alert('伺服器回應成功，但實際刪除 0 筆。\n\n代表 RLS 的 DELETE 條件擋住了這筆，或 id 對不上。\nid='+id);
+   return;
+ }
+ alert('已刪除 '+n+' 筆。');
  loadQuizList();
 }
 
